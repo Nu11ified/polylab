@@ -9,4 +9,5 @@ apps/desktop/.vite
 apps/desktop/dist-electron
 apps/desktop/server-bin
 apps/server/.data
+apps/server/.test-data
 .polylab
