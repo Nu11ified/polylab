@@ -2081,3 +2081,285 @@ button {
     grid-row: auto;
   }
 }
+
+/* Production bench shell */
+.lab-shell {
+  grid-template-columns: 260px minmax(560px, 1fr) 420px;
+}
+
+.lab-sidebar {
+  padding: 52px 10px 10px;
+  gap: 10px;
+  background: var(--panel);
+}
+
+.lab-brand-row {
+  height: 32px;
+}
+
+.lab-brand {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 7px;
+}
+
+.lab-topbar {
+  -webkit-app-region: drag;
+  height: 50px;
+  padding: 0 14px;
+  background: var(--panel);
+}
+
+.lab-topbar button,
+.lab-topbar input,
+.lab-topbar select,
+.lab-topbar a,
+.lab-sidebar button,
+.lab-sidebar select {
+  -webkit-app-region: no-drag;
+}
+
+.top-meta {
+  gap: 10px;
+}
+
+.top-actions button,
+.lab-icon-button,
+.lab-primary-action,
+.compact-actions button,
+.bench-composer button,
+.context-tabs button {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.top-actions button:hover,
+.lab-icon-button:hover,
+.lab-primary-action:hover,
+.compact-actions button:hover,
+.bench-composer button:hover,
+.context-tabs button:hover {
+  background: var(--panel-soft);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line) 64%);
+}
+
+.project-switcher,
+.inspector-card,
+.bench-surface,
+.metric {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.bench-view {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  overflow: hidden;
+}
+
+.bench-head {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.bench-head h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.bench-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.bench-tabs button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.bench-tabs button.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.bench-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bench-panel {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.bench-panel.two-col {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+}
+
+.bench-surface {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.bench-surface.primary {
+  align-content: stretch;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.source-preview,
+.equation-block {
+  min-height: 220px;
+  max-height: none;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.bench-composer {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+
+.bench-composer span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-composer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+}
+
+.context-panel {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.context-header {
+  display: grid;
+  gap: 8px;
+}
+
+.context-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.context-tabs button {
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.context-tabs button.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.lab-code-panel .inspector-card {
+  min-height: 0;
+  overflow: auto;
+}
+
+.lab-source-card pre {
+  max-height: none;
+}
+
+.lab-sidebar .nav-section:has(.nav-item) {
+  display: none;
+}
+
+@media (max-width: 1240px) {
+  .lab-shell {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .bench-head,
+  .bench-panel.two-col,
+  .metric-grid,
+  .bench-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .bench-tabs {
+    overflow: auto;
+  }
+}

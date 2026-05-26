@@ -10,6 +10,8 @@ const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
 type ViewId = "home" | "build" | "run" | "publish" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs" | "settings";
 type ThemeMode = "light" | "dark" | "system";
+type BenchPhase = "model" | "implement" | "evaluate" | "deploy" | "report";
+type ContextTab = "files" | "checks" | "artifacts" | "agent";
 
 interface CommandItem {
   id: string;
@@ -50,6 +52,8 @@ interface ClientState {
   commandOpen: boolean;
   selectedProjectId: string;
   selectedThreadId: string;
+  activePhase: BenchPhase;
+  contextTab: ContextTab;
   theme: ThemeMode;
   codexCommandDraft: string;
   selectedFormulaId: string;
@@ -99,6 +103,8 @@ const initialState: ClientState = {
   commandOpen: false,
   selectedProjectId: "local-research",
   selectedThreadId: "general",
+  activePhase: "model",
+  contextTab: "files",
   theme: "system",
   codexCommandDraft: "",
   selectedFormulaId: "softmax-jacobian",
@@ -191,6 +197,8 @@ function readCachedState(): ClientState {
       authToken: "",
       selectedProjectId: parsed.selectedProjectId ?? parsed.projects[0]?.id ?? initialState.selectedProjectId,
       selectedThreadId: parsed.selectedThreadId ?? "general",
+      activePhase: parsed.activePhase ?? "model",
+      contextTab: parsed.contextTab ?? "files",
       theme: parsed.theme ?? "system",
       codexCommandDraft: parsed.codexCommandDraft ?? parsed.agentRuntime.codexCommand ?? "",
       formulas: parsed.formulas.map(normalizeFormula),
@@ -339,14 +347,6 @@ function App() {
         </div>
 
         <ThreadList state={state} />
-
-        <NavSection label="Workspace">
-          <NavItem icon={<Search size={15} />} label="Workbench" active={isViewIn(state.activeView, ["home", "math", "verify", "code", "diff"])} onClick={() => setView("home")} />
-          <NavItem icon={<Braces size={15} />} label="Build" active={isViewIn(state.activeView, ["build", "notebook"])} onClick={() => setView("build")} />
-          <NavItem icon={<Play size={15} />} label="Run" active={isViewIn(state.activeView, ["run", "experiment", "benchmark", "cloud", "logs"])} onClick={() => setView("run")} />
-          <NavItem icon={<GitBranch size={15} />} label="Publish" active={isViewIn(state.activeView, ["publish", "git", "deploy", "latex"])} onClick={() => setView("publish")} />
-          <NavItem icon={<Settings size={15} />} label="Settings" active={state.activeView === "settings"} onClick={() => setView("settings")} />
-        </NavSection>
       </aside>
 
       <main className="workspace lab-workspace">
@@ -364,7 +364,7 @@ function App() {
             <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run agent</button>
           </div>
         </header>
-        <ViewSwitch view={state.activeView} formula={activeFormula} />
+        {state.activeView === "settings" ? <SettingsView /> : <HomeView formula={activeFormula} />}
       </main>
 
       <CodeContextPanel state={state} />
@@ -449,53 +449,234 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
   const warningChecks = latestVerification?.checks.filter((check) => check.status === "warning").length ?? 0;
   const activeRun = state.experiments[0] ?? state.executions[0];
   return (
-    <section className="view workbench-view">
-      <ViewHeader title={project.name} detail={`${threadLabel} / ${project.workspaceRoot ?? "local workspace"}`} />
-      <div className="workbench-grid">
-        <section className="workbench-primary">
+    <section className="view bench-view">
+      <div className="bench-head">
+        <div>
+          <h1>{formula?.title ?? project.name}</h1>
+          <p>{threadLabel} / {project.workspaceRoot ?? "local workspace"}</p>
+        </div>
+        <BenchPhaseTabs active={state.activePhase} />
+      </div>
+      <div className="bench-body">
+        <BenchPhasePanel
+          phase={state.activePhase}
+          formula={formula}
+          latestSession={latestSession}
+          latestVerification={latestVerification}
+          failedChecks={failedChecks}
+          warningChecks={warningChecks}
+          activeRun={activeRun}
+          state={state}
+        />
+      </div>
+      <ComposerBar state={state} />
+    </section>
+  );
+}
+
+function BenchPhaseTabs({ active }: { active: BenchPhase }) {
+  const phases: Array<{ id: BenchPhase; label: string; icon: React.ReactNode }> = [
+    { id: "model", label: "Model", icon: <Sigma size={14} /> },
+    { id: "implement", label: "Implement", icon: <Code2 size={14} /> },
+    { id: "evaluate", label: "Evaluate", icon: <Gauge size={14} /> },
+    { id: "deploy", label: "Deploy", icon: <Cloud size={14} /> },
+    { id: "report", label: "Report", icon: <FileText size={14} /> }
+  ];
+  return (
+    <div className="bench-tabs">
+      {phases.map((phase) => (
+        <button key={phase.id} className={active === phase.id ? "active" : ""} onClick={() => setPhase(phase.id)}>
+          {phase.icon}
+          <span>{phase.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BenchPhasePanel({
+  phase,
+  formula,
+  latestSession,
+  latestVerification,
+  failedChecks,
+  warningChecks,
+  activeRun,
+  state
+}: {
+  phase: BenchPhase;
+  formula?: FormulaCard;
+  latestSession?: AgentSession;
+  latestVerification?: GitVerificationSummary | FormulaCard["verificationHistory"][number];
+  failedChecks: number;
+  warningChecks: number;
+  activeRun?: ExperimentRun | ExecutionRun;
+  state: ClientState;
+}) {
+  if (phase === "implement") {
+    return (
+      <div className="bench-panel two-col">
+        <section className="bench-surface">
           <div className="surface-heading">
-            <strong>{formula?.title ?? "Math spec"}</strong>
+            <strong>Implementation target</strong>
             <div className="compact-actions">
-              <button onClick={() => setView("math")}><Sigma size={14} />Spec</button>
-              <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
+              <button onClick={() => void refreshWorkspaceFiles()}><Search size={14} />Index</button>
               <button onClick={() => void generatePatch()}><Braces size={14} />Patch</button>
+              <button onClick={() => void openWorkspaceRoot()}><FolderOpen size={14} />Editor</button>
             </div>
           </div>
-          <pre className="equation-block">{formula?.equation ?? "Select or create a formula for this project."}</pre>
-          <div className="workbench-metrics">
+          <pre className="source-preview">{state.editorFile?.content ?? "Select a project file in the right panel, then ask the agent to implement or modify the algorithm."}</pre>
+        </section>
+        <section className="bench-surface">
+          <strong>Patch status</strong>
+          <Metric label="Latest patch" value={state.patches[0]?.status ?? "none"} />
+          <Metric label="Selected file" value={state.editorFile?.path ?? "none"} />
+          <Metric label="Diagnostics" value={`${state.workspaceDiagnostics.filter((item) => item.path === state.selectedFilePath).length}`} />
+        </section>
+      </div>
+    );
+  }
+
+  if (phase === "evaluate") {
+    return (
+      <div className="bench-panel two-col">
+        <section className="bench-surface">
+          <div className="surface-heading">
+            <strong>Evaluation</strong>
+            <div className="compact-actions">
+              <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
+              <button onClick={() => void runExperiment()}><Play size={14} />Experiment</button>
+              <button onClick={() => void runBenchmark()}><Gauge size={14} />Benchmark</button>
+            </div>
+          </div>
+          <div className="metric-grid">
             <Metric label="Verification" value={latestVerification ? `${latestVerification.status} / ${failedChecks} failed / ${warningChecks} warnings` : "not run"} />
-            <Metric label="Implementation" value={state.editorFile?.path ?? `${state.workspaceFiles.filter((file) => file.kind === "file").length} indexed files`} />
-            <Metric label="Run" value={activeRun ? `${activeRun.state}: ${activeRun.command}` : "idle"} />
+            <Metric label="Active run" value={activeRun ? `${activeRun.state}: ${activeRun.command}` : "idle"} />
+            <Metric label="Benchmarks" value={`${state.benchmarks.length}`} />
           </div>
         </section>
-
-        <section className="workbench-chat">
-          <div className="surface-heading">
-            <strong>Agent thread</strong>
-            <div className="compact-actions">
-              <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
-              {latestSession ? <button onClick={() => void dispatchAgentHandoff(latestSession.id)}><Command size={14} />Codex</button> : null}
-            </div>
-          </div>
-          <div className="status-stack">
-            <span>{latestSession?.title ?? "No active agent session"}</span>
-            <small>{latestSession ? `${latestSession.state} / ${latestSession.attempts}/${latestSession.maxAttempts} attempts` : state.agentRuntime.credentialHint}</small>
-          </div>
-          {latestSession?.plan.slice(0, 7).map((step) => (
-            <div className="data-row" key={step.id}>
-              <span>{step.title}</span>
-              <small data-status={step.state}>{step.state}</small>
+        <section className="bench-surface">
+          <strong>Recent outcomes</strong>
+          {(state.experiments.length ? state.experiments : state.logs).slice(0, 8).map((item) => (
+            <div className="data-row" key={item.id}>
+              <span>{"message" in item ? item.message : item.name}</span>
+              <small data-status={"state" in item ? item.state : item.level}>{"state" in item ? item.state : item.level}</small>
             </div>
           ))}
         </section>
+      </div>
+    );
+  }
 
-        <section className="workbench-side">
-          <CategoryCard icon={<Braces size={15} />} title="Build" detail={`${state.patches.length} patches / ${state.documents.length} docs`} onClick={() => setView("build")} />
-          <CategoryCard icon={<Play size={15} />} title="Run" detail={`${state.experiments.length} experiments / ${state.benchmarks.length} benchmarks`} onClick={() => setView("run")} />
-          <CategoryCard icon={<GitBranch size={15} />} title="Publish" detail={`${state.deploymentPlans.length} deploy plans / ${state.syncRuns.length} sync runs`} onClick={() => setView("publish")} />
+  if (phase === "deploy") {
+    return (
+      <div className="bench-panel two-col">
+        <section className="bench-surface">
+          <div className="surface-heading">
+            <strong>Deployment test</strong>
+            <div className="compact-actions">
+              <button onClick={() => state.cloudJobs[0] ? void dispatchCloudJob(state.cloudJobs[0].id) : setPhase("evaluate")}><Cloud size={14} />Cloud</button>
+              <button onClick={() => void runSandboxExperiment()}><Terminal size={14} />Sandbox</button>
+              <button onClick={() => void createDeploymentPlan()}><Globe2 size={14} />Plan</button>
+            </div>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Cloud jobs" value={`${state.cloudJobs.length}`} />
+            <Metric label="Providers" value={`${state.cloudProviders.filter((provider) => provider.state !== "not-configured").length}/${state.cloudProviders.length}`} />
+            <Metric label="Deploy plans" value={`${state.deploymentPlans.length}`} />
+          </div>
+        </section>
+        <section className="bench-surface">
+          <strong>Live jobs</strong>
+          {state.cloudJobs.slice(0, 8).map((job) => (
+            <div className="data-row" key={job.id}>
+              <span>{job.command}</span>
+              <small data-status={job.state}>{job.state}</small>
+            </div>
+          ))}
         </section>
       </div>
-    </section>
+    );
+  }
+
+  if (phase === "report") {
+    return (
+      <div className="bench-panel two-col">
+        <section className="bench-surface">
+          <div className="surface-heading">
+            <strong>Report</strong>
+            <div className="compact-actions">
+              <button onClick={() => setView("notebook")}><FileText size={14} />Notebook</button>
+              <button onClick={() => setView("latex")}><FileText size={14} />Paper</button>
+              <button onClick={() => setView("artifacts")}><Download size={14} />Artifacts</button>
+            </div>
+          </div>
+          <div className="metric-grid">
+            <Metric label="Documents" value={`${state.documents.length}`} />
+            <Metric label="Artifacts" value={`${state.artifacts.length}`} />
+            <Metric label="Sync" value={state.syncRuns[0]?.state ?? "idle"} />
+          </div>
+        </section>
+        <section className="bench-surface">
+          <strong>Recent artifacts</strong>
+          {state.artifacts.slice(0, 8).map((artifact) => (
+            <button className="data-row" key={artifact.id} onClick={() => void previewArtifact(artifact.id)}>
+              <span>{artifact.path}</span>
+              <small>{artifact.sourceType}</small>
+            </button>
+          ))}
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bench-panel two-col">
+      <section className="bench-surface primary">
+        <div className="surface-heading">
+          <strong>{formula?.title ?? "Algorithm model"}</strong>
+          <div className="compact-actions">
+            <button onClick={() => void createFormula()}><Plus size={14} />New</button>
+            <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
+          </div>
+        </div>
+        <pre className="equation-block">{formula?.equation ?? "Define or select the equations, assumptions, dimensions, invariants, and scaling constraints."}</pre>
+        <div className="metric-grid">
+          <Metric label="Variables" value={`${formula?.variables.length ?? 0}`} />
+          <Metric label="Assumptions" value={`${formula?.assumptions.length ?? 0}`} />
+          <Metric label="Status" value={formula?.status ?? "queued"} />
+        </div>
+      </section>
+      <section className="bench-surface">
+        <div className="surface-heading">
+          <strong>Agent thread</strong>
+          <div className="compact-actions">
+            <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
+            {latestSession ? <button onClick={() => void dispatchAgentHandoff(latestSession.id)}><Command size={14} />Codex</button> : null}
+          </div>
+        </div>
+        <div className="status-stack">
+          <span>{latestSession?.title ?? "No active agent session"}</span>
+          <small>{latestSession ? `${latestSession.state} / ${latestSession.attempts}/${latestSession.maxAttempts}` : state.agentRuntime.credentialHint}</small>
+        </div>
+        {latestSession?.plan.slice(0, 7).map((step) => (
+          <div className="data-row" key={step.id}>
+            <span>{step.title}</span>
+            <small data-status={step.state}>{step.state}</small>
+          </div>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function ComposerBar({ state }: { state: ClientState }) {
+  return (
+    <div className="bench-composer">
+      <button onClick={() => toggleCommand(true)}><Command size={15} />Ask AI about this phase</button>
+      <span>{state.activePhase} / {selectedThreadLabel(state)}</span>
+      <button onClick={() => void runAgentWorkflow()}><Bot size={15} />Run agent</button>
+    </div>
   );
 }
 
@@ -591,73 +772,108 @@ function CodeContextPanel({ state }: { state: ClientState }) {
   const fileName = state.editorFile?.path ?? state.selectedFilePath;
   const source = state.editorFile?.content ?? "Select a file from this project.";
   return (
-    <aside className="inspector-panel lab-code-panel">
-      <section className="inspector-card">
-        <div className="surface-heading">
-          <strong>Implementation</strong>
-          <small>{files.length} files</small>
+    <aside className="inspector-panel lab-code-panel context-panel">
+      <div className="context-header">
+        <strong>Context</strong>
+        <div className="context-tabs">
+          <button className={state.contextTab === "files" ? "active" : ""} onClick={() => setContextTab("files")}>Files</button>
+          <button className={state.contextTab === "checks" ? "active" : ""} onClick={() => setContextTab("checks")}>Checks</button>
+          <button className={state.contextTab === "artifacts" ? "active" : ""} onClick={() => setContextTab("artifacts")}>Artifacts</button>
+          <button className={state.contextTab === "agent" ? "active" : ""} onClick={() => setContextTab("agent")}>Agent</button>
         </div>
-        <div className="lab-code-actions">
-          <button onClick={() => void refreshWorkspaceFiles()}><Search size={14} />Index</button>
-          <button onClick={() => void openExternalEditor()} disabled={!state.editorFile}><FolderOpen size={14} />Open</button>
-        </div>
-      </section>
+      </div>
 
-      <section className="inspector-card lab-file-browser">
-        <div className="surface-heading">
-          <strong>Files</strong>
-          <small>{fileName ? fileName.split("/").pop() : "none"}</small>
-        </div>
-        <div className="lab-file-list">
-          {files.slice(0, 24).map((file) => (
-            <button key={file.path} className={file.path === state.selectedFilePath ? "active" : ""} onClick={() => void openWorkspaceFile(file.path)}>
-              <span>{file.path}</span>
-              <small>{file.language ?? "text"}</small>
+      {state.contextTab === "files" ? (
+        <>
+          <section className="inspector-card lab-file-browser">
+            <div className="surface-heading">
+              <strong>Files</strong>
+              <div className="lab-code-actions">
+                <button onClick={() => void refreshWorkspaceFiles()}><Search size={14} />Index</button>
+                <button onClick={() => void openExternalEditor()} disabled={!state.editorFile}><FolderOpen size={14} />Open</button>
+              </div>
+            </div>
+            <div className="lab-file-list">
+              {files.slice(0, 32).map((file) => (
+                <button key={file.path} className={file.path === state.selectedFilePath ? "active" : ""} onClick={() => void openWorkspaceFile(file.path)}>
+                  <span>{file.path}</span>
+                  <small>{file.language ?? "text"}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="inspector-card lab-source-card">
+            <div className="surface-heading">
+              <strong>{fileName ? fileName.split("/").pop() : "Source"}</strong>
+              <small>{state.editorFile?.language ?? "text"}</small>
+            </div>
+            <pre>{source}</pre>
+          </section>
+          <section className="inspector-card">
+            <div className="surface-heading">
+              <strong>Symbols</strong>
+              <small>{activeDiagnostics.length} diagnostics</small>
+            </div>
+            {activeSymbols.slice(0, 8).map((symbol) => (
+              <div className="data-row" key={symbol.id}>
+                <span>{symbol.name}</span>
+                <small>{symbol.kind} L{symbol.line}</small>
+              </div>
+            ))}
+            {activeDiagnostics.slice(0, 5).map((diagnostic) => (
+              <div className="data-row" key={diagnostic.id}>
+                <span>{diagnostic.message}</span>
+                <small data-status={diagnostic.severity}>L{diagnostic.line}</small>
+              </div>
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      {state.contextTab === "checks" ? (
+        <section className="inspector-card">
+          <div className="surface-heading">
+            <strong>Verification</strong>
+            <small>{state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.status ?? "queued"}</small>
+          </div>
+          {(state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.verificationHistory[0]?.checks ?? []).map((check) => (
+            <div className="data-row" key={check.name}>
+              <span>{check.name}</span>
+              <small data-status={check.status}>{check.status}</small>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {state.contextTab === "artifacts" ? (
+        <section className="inspector-card">
+          <div className="surface-heading">
+            <strong>Artifacts</strong>
+            <small>{state.artifacts.length}</small>
+          </div>
+          {state.artifacts.slice(0, 18).map((artifact) => (
+            <button className="data-row" key={artifact.id} onClick={() => void previewArtifact(artifact.id)}>
+              <span>{artifact.path}</span>
+              <small>{artifact.sourceType}</small>
             </button>
           ))}
-        </div>
-      </section>
+        </section>
+      ) : null}
 
-      <section className="inspector-card lab-source-card">
-        <div className="surface-heading">
-          <strong>{fileName ? fileName.split("/").pop() : "Source"}</strong>
-          <small>{state.editorFile?.language ?? "text"}</small>
-        </div>
-        <pre>{source}</pre>
-      </section>
-
-      <section className="inspector-card">
-        <div className="surface-heading">
-          <strong>Symbols</strong>
-          <small>{activeDiagnostics.length} diagnostics</small>
-        </div>
-        {activeSymbols.slice(0, 8).map((symbol) => (
-          <div className="data-row" key={symbol.id}>
-            <span>{symbol.name}</span>
-            <small>{symbol.kind} L{symbol.line}</small>
+      {state.contextTab === "agent" ? (
+        <section className="inspector-card">
+          <div className="surface-heading">
+            <strong>Agent</strong>
+            <small>{state.agentRuntime.state}</small>
           </div>
-        ))}
-        {activeDiagnostics.slice(0, 5).map((diagnostic) => (
-          <div className="data-row" key={diagnostic.id}>
-            <span>{diagnostic.message}</span>
-            <small data-status={diagnostic.severity}>L{diagnostic.line}</small>
-          </div>
-        ))}
-        {activeSymbols.length === 0 && activeDiagnostics.length === 0 ? <small>No symbols or diagnostics for this file.</small> : null}
-      </section>
-
-      <section className="inspector-card">
-        <div className="surface-heading">
-          <strong>Checks</strong>
-          <small>{state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.status ?? "queued"}</small>
-        </div>
-        {(state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.verificationHistory[0]?.checks ?? []).slice(0, 7).map((check) => (
-          <div className="data-row" key={check.name}>
-            <span>{check.name}</span>
-            <small data-status={check.status}>{check.status}</small>
-          </div>
-        ))}
-      </section>
+          {(state.agentSessions[0]?.plan ?? []).slice(0, 12).map((step) => (
+            <div className="data-row" key={step.id}>
+              <span>{step.title}</span>
+              <small data-status={step.state}>{step.state}</small>
+            </div>
+          ))}
+        </section>
+      ) : null}
     </aside>
   );
 }
@@ -1602,6 +1818,14 @@ function useKeyboard(commands: CommandItem[]) {
 
 function setView(activeView: ViewId) {
   updateState((draft) => ({ ...draft, activeView }));
+}
+
+function setPhase(activePhase: BenchPhase) {
+  updateState((draft) => ({ ...draft, activePhase, activeView: "home" }));
+}
+
+function setContextTab(contextTab: ContextTab) {
+  updateState((draft) => ({ ...draft, contextTab }));
 }
 
 function isViewIn(view: ViewId, views: ViewId[]) {
