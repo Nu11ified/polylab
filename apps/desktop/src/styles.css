@@ -906,9 +906,12 @@ small {
 
 .palette {
   width: min(620px, calc(100vw - 32px));
-  border: 1px solid #c8c5ba;
-  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 
 .palette-input {
@@ -917,8 +920,8 @@ small {
   gap: 10px;
   height: 46px;
   padding: 0 14px;
-  border-bottom: 1px solid #e0ded5;
-  color: #686b63;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
 }
 
 .palette-input input {
@@ -927,7 +930,7 @@ small {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #22231f;
+  color: var(--text);
   font: inherit;
 }
 
@@ -939,14 +942,15 @@ small {
   align-items: center;
   height: 38px;
   padding: 0 14px;
-  background: #ffffff;
-  color: #22231f;
+  border: 0;
+  background: var(--panel);
+  color: var(--text);
   text-align: left;
 }
 
 .palette button:hover,
 .palette button.active {
-  background: #f1f0eb;
+  background: var(--panel-soft);
 }
 
 @media (max-width: 1100px) {
@@ -2132,7 +2136,7 @@ button {
   min-height: 30px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 92%, var(--accent) 3%);
   color: var(--text);
   box-shadow: none;
 }
@@ -2294,6 +2298,13 @@ button {
   padding: 0 10px;
 }
 
+.top-actions button:last-child,
+.bench-composer button:first-child,
+.compact-actions button:first-child {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line) 58%);
+  background: color-mix(in srgb, var(--panel) 82%, var(--accent) 10%);
+}
+
 .context-panel {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
@@ -2302,19 +2313,18 @@ button {
 }
 
 .context-collapsed {
-  grid-template-columns: 260px minmax(0, 1fr) 48px;
+  grid-template-columns: 260px minmax(0, 1fr) 0;
 }
 
 .context-collapsed .context-panel {
-  padding: 8px 6px;
+  width: 0;
+  padding: 0;
+  border-left: 0;
   overflow: hidden;
 }
 
-.context-collapsed .context-header {
-  align-items: center;
-}
-
 .context-collapsed .context-header > strong,
+.context-collapsed .context-collapse,
 .context-collapsed .context-tabs,
 .context-collapsed .context-panel .inspector-card {
   display: none;

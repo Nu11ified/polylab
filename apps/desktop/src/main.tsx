@@ -1856,9 +1856,12 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
 function useKeyboard(commands: CommandItem[]) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const mod = event.metaKey || event.ctrlKey;
+      if (isTextInputEvent(event) && event.key !== "Escape") return;
+      const isMac = window.polylabDesktop?.platform === "darwin" || navigator.platform.toLowerCase().includes("mac");
+      const mod = isMac ? event.metaKey : event.ctrlKey;
       const alt = event.altKey;
-      if (!mod) return;
+      if (event.key === "Escape") toggleCommand(false);
+      if (!mod || (isMac && event.ctrlKey)) return;
       const key = event.key.toLowerCase();
 
       const matched = commands.find((command) => {
@@ -1870,12 +1873,17 @@ function useKeyboard(commands: CommandItem[]) {
         event.preventDefault();
         matched.run();
       }
-
-      if (event.key === "Escape") toggleCommand(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [commands]);
+}
+
+function isTextInputEvent(event: KeyboardEvent) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return target.isContentEditable || tag === "input" || tag === "textarea" || tag === "select";
 }
 
 function setView(activeView: ViewId) {
