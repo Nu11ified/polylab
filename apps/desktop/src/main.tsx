@@ -8,7 +8,7 @@ import "./styles.css";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
-type ViewId = "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs";
+type ViewId = "home" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs";
 
 interface CommandItem {
   id: string;
@@ -90,7 +90,7 @@ interface ClientState {
 }
 
 const initialState: ClientState = {
-  activeView: "code",
+  activeView: "home",
   commandOpen: false,
   selectedFormulaId: "softmax-jacobian",
   selectedFilePath: "",
@@ -302,103 +302,59 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand"><Sigma size={18} />PolyLab</div>
-        <div className="top-meta">
-          <span>{state.projects[0]?.name ?? "Workspace"}</span>
-          <span><GitBranch size={14} />{state.projects[0]?.branch ?? "main"}</span>
-          <span><Zap size={14} />{state.projects[0]?.runtime ?? "local"}</span>
-          <span><Bot size={14} />pi-mono</span>
-          <span><Zap size={14} />{pendingMutationCount(state.pendingMutations)} queued</span>
-        </div>
-        <button className="command-button" onClick={() => toggleCommand(true)}><Command size={15} />Cmd K</button>
-      </header>
-
       <aside className="sidebar">
-        <PanelTitle icon={<Search size={14} />} label="Workspace" />
-        <NavItem icon={<Code2 size={15} />} label="Code" active={state.activeView === "code"} onClick={() => setView("code")} />
-        <NavItem icon={<Braces size={15} />} label="Diff" active={state.activeView === "diff"} onClick={() => setView("diff")} />
-        <NavItem icon={<Sigma size={15} />} label="Math" active={state.activeView === "math"} onClick={() => setView("math")} />
-        <NavItem icon={<FileText size={15} />} label="LaTeX" active={state.activeView === "latex"} onClick={() => setView("latex")} />
-        <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
-        <NavItem icon={<CheckCircle2 size={15} />} label="Verification" active={state.activeView === "verify"} onClick={() => setView("verify")} />
-        <NavItem icon={<Play size={15} />} label="Experiments" active={state.activeView === "experiment"} onClick={() => setView("experiment")} />
-        <NavItem icon={<Gauge size={15} />} label="Benchmarks" active={state.activeView === "benchmark"} onClick={() => setView("benchmark")} />
-        <NavItem icon={<Cloud size={15} />} label="Cloud" active={state.activeView === "cloud"} onClick={() => setView("cloud")} />
-        <NavItem icon={<Globe2 size={15} />} label="Deploy" active={state.activeView === "deploy"} onClick={() => setView("deploy")} />
-        <NavItem icon={<Zap size={15} />} label="Performance" active={state.activeView === "performance"} onClick={() => setView("performance")} />
-        <NavItem icon={<Database size={15} />} label="Database" active={state.activeView === "database"} onClick={() => setView("database")} />
-        <NavItem icon={<ShieldCheck size={15} />} label="Security" active={state.activeView === "security"} onClick={() => setView("security")} />
-        <NavItem icon={<Download size={15} />} label="Artifacts" active={state.activeView === "artifacts"} onClick={() => setView("artifacts")} />
-        <NavItem icon={<Zap size={15} />} label="Activity" active={state.activeView === "activity"} onClick={() => setView("activity")} />
-        <NavItem icon={<GitBranch size={15} />} label="Git" active={state.activeView === "git"} onClick={() => setView("git")} />
-        <NavItem icon={<Cloud size={15} />} label="Sync" active={state.activeView === "sync"} onClick={() => setView("sync")} />
-        <NavItem icon={<Terminal size={15} />} label="Logs" active={state.activeView === "logs"} onClick={() => setView("logs")} />
+        <button className="brand" onClick={() => setView("home")}><Sigma size={18} />PolyLab</button>
+        <button className="command-button" onClick={() => toggleCommand(true)}><Command size={15} />Command</button>
 
-        <PanelTitle icon={<Sigma size={14} />} label="Formulas" />
-        {state.formulas.map((formula) => (
-          <button
-            key={formula.id}
-            className={`formula-row ${formula.id === state.selectedFormulaId ? "active" : ""}`}
-            onClick={() => updateState((draft) => ({ ...draft, selectedFormulaId: formula.id, activeView: "math" }))}
-          >
-            <span>{formula.title}</span>
-            <small data-status={formula.status}>{formula.status}</small>
-          </button>
-        ))}
-        <button className="new-formula" onClick={() => void createFormula()}><Plus size={14} />Formula</button>
+        <NavSection label="Build">
+          <NavItem icon={<Search size={15} />} label="Overview" active={state.activeView === "home"} onClick={() => setView("home")} />
+          <NavItem icon={<Code2 size={15} />} label="Code" active={state.activeView === "code"} onClick={() => setView("code")} />
+          <NavItem icon={<Sigma size={15} />} label="Math" active={state.activeView === "math"} onClick={() => setView("math")} />
+          <NavItem icon={<CheckCircle2 size={15} />} label="Verify" active={state.activeView === "verify"} onClick={() => setView("verify")} />
+          <NavItem icon={<Braces size={15} />} label="Patches" active={state.activeView === "diff"} onClick={() => setView("diff")} />
+        </NavSection>
+
+        <NavSection label="Run">
+          <NavItem icon={<Play size={15} />} label="Experiments" active={state.activeView === "experiment"} onClick={() => setView("experiment")} />
+          <NavItem icon={<Gauge size={15} />} label="Benchmarks" active={state.activeView === "benchmark"} onClick={() => setView("benchmark")} />
+          <NavItem icon={<Cloud size={15} />} label="Cloud" active={state.activeView === "cloud"} onClick={() => setView("cloud")} />
+          <NavItem icon={<Terminal size={15} />} label="Logs" active={state.activeView === "logs"} onClick={() => setView("logs")} />
+        </NavSection>
+
+        <NavSection label="Publish">
+          <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
+          <NavItem icon={<FileText size={15} />} label="Paper" active={state.activeView === "latex"} onClick={() => setView("latex")} />
+          <NavItem icon={<GitBranch size={15} />} label="Git" active={state.activeView === "git"} onClick={() => setView("git")} />
+          <NavItem icon={<Globe2 size={15} />} label="Deploy" active={state.activeView === "deploy"} onClick={() => setView("deploy")} />
+        </NavSection>
+
+        <NavSection label="System">
+          <NavItem icon={<Download size={15} />} label="Artifacts" active={state.activeView === "artifacts"} onClick={() => setView("artifacts")} />
+          <NavItem icon={<Cloud size={15} />} label="Sync" active={state.activeView === "sync"} onClick={() => setView("sync")} />
+          <NavItem icon={<ShieldCheck size={15} />} label="Security" active={state.activeView === "security"} onClick={() => setView("security")} />
+          <NavItem icon={<Database size={15} />} label="Database" active={state.activeView === "database"} onClick={() => setView("database")} />
+          <NavItem icon={<Zap size={15} />} label="Performance" active={state.activeView === "performance"} onClick={() => setView("performance")} />
+          <NavItem icon={<Zap size={15} />} label="Activity" active={state.activeView === "activity"} onClick={() => setView("activity")} />
+        </NavSection>
       </aside>
 
       <main className="workspace">
+        <header className="topbar">
+          <div className="top-meta">
+            <span>{state.projects[0]?.name ?? "Workspace"}</span>
+            <span><GitBranch size={14} />{state.projects[0]?.branch ?? "main"}</span>
+            <span><Bot size={14} />{state.agentRuntime.state}</span>
+            <span><Zap size={14} />{pendingMutationCount(state.pendingMutations)} queued</span>
+          </div>
+          <div className="top-actions">
+            <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
+            <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run agent</button>
+          </div>
+        </header>
         <ViewSwitch view={state.activeView} formula={activeFormula} />
       </main>
 
-      <aside className="agent-panel">
-        <PanelTitle icon={<Bot size={14} />} label="Agent Session" />
-        <div className="agent-card">
-          <strong>Pi mono orchestration</strong>
-          <span>{state.agentSessions[0]?.state ?? "ready"} / {state.agentSessions[0]?.attempts ?? 0} verification attempts</span>
-          <span>{state.agentRuntime.provider} / {state.agentRuntime.state}</span>
-          <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
-          {state.agentSessions[0] ? <button onClick={() => void exportAgentReplay(state.agentSessions[0]!.id)}><Download size={14} />Replay</button> : null}
-          {state.agentSessions[0] ? <button onClick={() => void dispatchAgentHandoff(state.agentSessions[0]!.id)}><Command size={14} />Codex</button> : null}
-          {state.agentSessions[0]?.replayPath ? <small>{state.agentSessions[0].replayPath}</small> : null}
-          {state.agentHandoffs[0] ? <small>{state.agentHandoffs[0].state}: {state.agentHandoffs[0].requestPath}</small> : null}
-        </div>
-        {state.agentSessions[0] ? (
-          <div className="agent-trace">
-            {state.agentSessions[0].plan.map((step) => (
-              <div className="task" key={step.id} data-status={step.state}>
-                <span>{step.title}</span>
-                <small>{step.state}</small>
-              </div>
-            ))}
-            {state.agentSessions[0].trace.slice(-4).map((event) => (
-              <div className="log" key={event.id}>
-                <span>{event.message}</span>
-                <small>{event.type}</small>
-              </div>
-            ))}
-          </div>
-        ) : null}
-        <div className="task-list">
-          {state.tasks.map((task) => (
-            <div className="task" key={task.id}>
-              <span>{task.title}</span>
-              <small>{task.shortcut ?? task.state}</small>
-            </div>
-          ))}
-        </div>
-        <PanelTitle icon={<Terminal size={14} />} label="Execution" />
-        <div className="log-list">
-          {state.logs.slice(0, 6).map((log) => (
-            <div className="log" key={log.id}>
-              <span>{log.message}</span>
-              <small>{new Date(log.createdAt).toLocaleTimeString()}</small>
-            </div>
-          ))}
-        </div>
-      </aside>
+      <InspectorPanel state={state} />
 
       {state.commandOpen ? <CommandPalette commands={commands} /> : null}
     </div>
@@ -406,6 +362,7 @@ function App() {
 }
 
 function ViewSwitch({ view, formula }: { view: ViewId; formula?: FormulaCard }) {
+  if (view === "home") return <HomeView formula={formula} />;
   if (view === "code") return <CodeView />;
   if (view === "diff") return <DiffView formula={formula} />;
   if (view === "math") return <MathView formula={formula} />;
@@ -424,6 +381,151 @@ function ViewSwitch({ view, formula }: { view: ViewId; formula?: FormulaCard }) 
   if (view === "sync") return <SyncView />;
   if (view === "logs") return <LogsView />;
   return <NotebookView />;
+}
+
+function HomeView({ formula }: { formula?: FormulaCard }) {
+  const state = useAppState();
+  const latestSession = state.agentSessions[0];
+  const latestVerification = formula?.verificationHistory[0];
+  const failedChecks = latestVerification?.checks.filter((check) => check.status === "failed").length ?? 0;
+  const warningChecks = latestVerification?.checks.filter((check) => check.status === "warning").length ?? 0;
+  const activeRun = state.experiments[0] ?? state.executions[0];
+  return (
+    <section className="view home-view">
+      <div className="home-hero">
+        <div>
+          <h1>{formula?.title ?? "Research workspace"}</h1>
+          <p>{formula?.equation ?? "Local-first model, robotics, math, and code verification."}</p>
+        </div>
+        <div className="home-actions">
+          <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={15} />Verify</button>
+          <button onClick={() => void runAgentWorkflow()}><Bot size={15} />Agent run</button>
+          <button onClick={() => setView("code")}><Code2 size={15} />Open code</button>
+        </div>
+      </div>
+
+      <div className="home-grid">
+        <button className="workflow-tile" onClick={() => setView("verify")}>
+          <CheckCircle2 size={18} />
+          <strong>Verification</strong>
+          <span>{latestVerification ? `${latestVerification.status}: ${failedChecks} failed, ${warningChecks} warnings` : "No run yet"}</span>
+        </button>
+        <button className="workflow-tile" onClick={() => setView("diff")}>
+          <Braces size={18} />
+          <strong>Patches</strong>
+          <span>{state.patches[0]?.status ?? "No generated patch"}</span>
+        </button>
+        <button className="workflow-tile" onClick={() => setView("experiment")}>
+          <Play size={18} />
+          <strong>Execution</strong>
+          <span>{activeRun ? `${activeRun.state}: ${activeRun.command}` : "No active run"}</span>
+        </button>
+        <button className="workflow-tile" onClick={() => setView("cloud")}>
+          <Cloud size={18} />
+          <strong>Cloud</strong>
+          <span>{state.cloudJobs.length} jobs / {state.cloudProviders.filter((provider) => provider.state !== "not-configured").length} providers</span>
+        </button>
+      </div>
+
+      <div className="home-columns">
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>Formulas</strong>
+            <button onClick={() => void createFormula()}><Plus size={14} />New</button>
+          </div>
+          {state.formulas.slice(0, 6).map((item) => (
+            <button
+              key={item.id}
+              className="data-row"
+              onClick={() => updateState((draft) => ({ ...draft, selectedFormulaId: item.id, activeView: "math" }))}
+            >
+              <span>{item.title}</span>
+              <small data-status={item.status}>{item.status}</small>
+            </button>
+          ))}
+        </section>
+
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>Agent</strong>
+            <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
+          </div>
+          <div className="status-stack">
+            <span>{latestSession?.state ?? "ready"}</span>
+            <small>{latestSession ? `${latestSession.attempts}/${latestSession.maxAttempts} attempts` : state.agentRuntime.credentialHint}</small>
+          </div>
+          {latestSession?.plan.slice(0, 5).map((step) => (
+            <div className="data-row" key={step.id}>
+              <span>{step.title}</span>
+              <small data-status={step.state}>{step.state}</small>
+            </div>
+          ))}
+        </section>
+
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>Recent activity</strong>
+            <button onClick={() => setView("activity")}><Zap size={14} />Open</button>
+          </div>
+          {(state.activityEvents.length ? state.activityEvents : state.logs).slice(0, 6).map((item) => (
+            <div className="data-row" key={item.id}>
+              <span>{"message" in item ? item.message : item.title}</span>
+              <small>{new Date(item.createdAt).toLocaleTimeString()}</small>
+            </div>
+          ))}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function InspectorPanel({ state }: { state: ClientState }) {
+  const latestSession = state.agentSessions[0];
+  return (
+    <aside className="inspector-panel">
+      <section className="inspector-card">
+        <div className="surface-heading">
+          <strong>Pi mono</strong>
+          <small>{state.agentRuntime.state}</small>
+        </div>
+        <div className="status-stack">
+          <span>{latestSession?.state ?? "ready"}</span>
+          <small>{latestSession ? `${latestSession.attempts}/${latestSession.maxAttempts} attempts` : "codex handoff idle"}</small>
+        </div>
+        <div className="mini-actions">
+          <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
+          {latestSession ? <button onClick={() => void exportAgentReplay(latestSession.id)}><Download size={14} />Replay</button> : null}
+          {latestSession ? <button onClick={() => void dispatchAgentHandoff(latestSession.id)}><Command size={14} />Codex</button> : null}
+        </div>
+      </section>
+
+      <section className="inspector-card">
+        <div className="surface-heading">
+          <strong>Checks</strong>
+          <small>{state.formulas[0]?.status ?? "queued"}</small>
+        </div>
+        {(state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.verificationHistory[0]?.checks ?? []).slice(0, 7).map((check) => (
+          <div className="data-row" key={check.name}>
+            <span>{check.name}</span>
+            <small data-status={check.status}>{check.status}</small>
+          </div>
+        ))}
+      </section>
+
+      <section className="inspector-card">
+        <div className="surface-heading">
+          <strong>Logs</strong>
+          <small>{state.logs.length}</small>
+        </div>
+        {state.logs.slice(0, 6).map((log) => (
+          <div className="data-row" key={log.id}>
+            <span>{log.message}</span>
+            <small>{new Date(log.createdAt).toLocaleTimeString()}</small>
+          </div>
+        ))}
+      </section>
+    </aside>
+  );
 }
 
 function CodeView() {
@@ -1219,6 +1321,15 @@ function ViewHeader({ title, detail }: { title: string; detail: string }) {
 
 function PanelTitle({ icon, label }: { icon: React.ReactNode; label: string }) {
   return <div className="panel-title">{icon}<span>{label}</span></div>;
+}
+
+function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="nav-section">
+      <div className="nav-section-label">{label}</div>
+      {children}
+    </div>
+  );
 }
 
 function MetaList({ label, items }: { label: string; items: string[] }) {
