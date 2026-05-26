@@ -1701,10 +1701,6 @@ async function refreshWorkspaceFiles(showLog = true) {
       api<WorkspaceDiagnostic[]>("/api/files/diagnostics")
     ]);
     updateState((draft) => ({ ...draft, workspaceFiles: files, workspaceSymbols: symbols, workspaceDiagnostics: diagnostics }));
-    if (!store.getSnapshot().editorFile) {
-      const first = files.find((file) => file.kind === "file");
-      if (first) await openWorkspaceFile(first.path);
-    }
     if (showLog) appendLog(`Indexed ${files.length} workspace entries`);
   } catch {
     if (showLog) appendLog("Workspace file index failed because the local server is unavailable");
