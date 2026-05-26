@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, normalize, relative, sep } from "node:path";
 import { performance } from "node:perf_hooks";
-import type { ActivityEvent, AgentHandoff, AgentPlanStep, AgentReplay, AgentRuntimeConfig, AgentSession, AgentTask, AgentTraceEvent, ArtifactContent, ArtifactRecord, BenchmarkRequest, BenchmarkRun, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyItem, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, DeploymentRoute, DnsPreviewChange, ExecutionLog, ExecutionRequest, ExecutionRoute, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitVerificationSummary, NotebookCell, PatchReview, PermissionCategory, PermissionCheck, PermissionDecision, PermissionMode, ProjectSummary, ResearchDocument, RuntimeTarget, SyncRun, VerificationCheck, VerificationReport, VerificationStatus, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
+import type { ActivityEvent, AgentHandoff, AgentPlanStep, AgentProviderProfile, AgentReplay, AgentRuntimeConfig, AgentSession, AgentTask, AgentTraceEvent, ArtifactContent, ArtifactRecord, BenchmarkRequest, BenchmarkRun, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyItem, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, DeploymentRoute, DnsPreviewChange, ExecutionLog, ExecutionRequest, ExecutionRoute, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitVerificationSummary, NotebookCell, PatchReview, PermissionCategory, PermissionCheck, PermissionDecision, PermissionMode, ProjectSummary, ResearchDocument, RuntimeTarget, SyncRun, VerificationCheck, VerificationReport, VerificationStatus, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
 import type { PersistenceEvent, PersistenceStatus } from "@polylab/types";
 import { WorkspaceDatabase } from "./database";
 import { defaultDocuments, renderDocument, renderDocumentPdf, serializeNotebookCells } from "./documents";
@@ -717,11 +717,18 @@ export class WorkspaceStore {
   async agentRuntime(): Promise<AgentRuntimeConfig> {
     const saved = await this.readJson("sessions/agent-runtime.json", defaultAgentRuntime());
     const command = saved.codexCommand ?? process.env.POLYLAB_CODEX_COMMAND;
+    const providerProfiles = Array.isArray(saved.providerProfiles) ? saved.providerProfiles : defaultProviderProfiles(command);
+    const selectedProviderId = saved.selectedProviderId && providerProfiles.some((profile) => profile.id === saved.selectedProviderId)
+      ? saved.selectedProviderId
+      : providerProfiles[0]?.id;
+    const activeProfile = providerProfiles.find((profile) => profile.id === selectedProviderId);
     return {
       ...defaultAgentRuntime(),
       ...saved,
+      providerProfiles,
+      selectedProviderId,
       codexCommand: command,
-      state: command ? saved.state === "connected" ? "connected" : "configured" : saved.state,
+      state: activeProfile?.state ?? (command ? saved.state === "connected" ? "connected" : "configured" : saved.state),
       updatedAt: saved.updatedAt ?? now()
     };
   }
@@ -733,7 +740,9 @@ export class WorkspaceStore {
       ...input,
       runtime: "pi-mono",
       provider: "codex",
-      state: input.state ?? (input.codexCommand || current.codexCommand ? "configured" : "not-configured"),
+      providerProfiles: input.providerProfiles ?? current.providerProfiles,
+      selectedProviderId: input.selectedProviderId ?? current.selectedProviderId,
+      state: input.state ?? ((input.providerProfiles?.length || current.providerProfiles?.length || input.codexCommand || current.codexCommand) ? "configured" : "not-configured"),
       credentialHint: input.credentialHint ?? current.credentialHint,
       workspaceIndexPath: input.workspaceIndexPath ?? current.workspaceIndexPath,
       updatedAt: now()
@@ -741,6 +750,32 @@ export class WorkspaceStore {
     await this.writeJson("sessions/agent-runtime.json", updated);
     await this.addLog(`Configured Pi mono ${updated.provider} runtime`, "info");
     return updated;
+  }
+
+  async upsertAgentProviderProfile(input: Partial<AgentProviderProfile>): Promise<AgentRuntimeConfig> {
+    const current = await this.agentRuntime();
+    const id = input.id?.trim() || `codex-${crypto.randomUUID()}`;
+    const profile: AgentProviderProfile = {
+      id,
+      name: input.name?.trim() || "Codex",
+      provider: "codex",
+      command: input.command || "builtin:codex-cli",
+      homePath: input.homePath?.trim() || "~/.codex",
+      shadowHomePath: input.shadowHomePath?.trim() || undefined,
+      env: input.env ?? {},
+      state: input.state ?? "configured",
+      authHint: input.authHint ?? "Run codex login for this CODEX_HOME.",
+      updatedAt: now()
+    };
+    return this.configureAgentRuntime({
+      ...current,
+      providerProfiles: [profile, ...(current.providerProfiles ?? []).filter((item) => item.id !== profile.id)],
+      selectedProviderId: profile.id,
+      codexCommand: profile.command,
+      credentialHint: `${profile.name} connected to Pi mono (${profile.homePath}).`,
+      state: "configured",
+      updatedAt: now()
+    });
   }
 
   async agentHandoffs(): Promise<AgentHandoff[]> {
@@ -767,7 +802,9 @@ export class WorkspaceStore {
     };
     await this.writeWorkspaceText(requestPath, JSON.stringify(request, null, 2));
 
-    const command = input.command ?? runtime.codexCommand ?? process.env.POLYLAB_CODEX_COMMAND;
+    const activeProfile = runtime.providerProfiles?.find((profile) => profile.id === runtime.selectedProviderId) ?? runtime.providerProfiles?.[0];
+    const command = input.command ?? activeProfile?.command ?? runtime.codexCommand ?? process.env.POLYLAB_CODEX_COMMAND;
+    const profileEnv = activeProfile ? providerProfileEnv(activeProfile) : {};
     let handoff: AgentHandoff = {
       id,
       sessionId: session.id,
@@ -788,6 +825,7 @@ export class WorkspaceStore {
     handoff = { ...handoff, state: "dispatched", updatedAt: now() };
     await this.saveAgentHandoff(handoff, `Dispatching Codex handoff ${handoff.id}.`);
     const result = await runAgentCommand(command, this.workspaceRoot, {
+      ...profileEnv,
       POLYLAB_AGENT_SESSION_ID: session.id,
       POLYLAB_AGENT_HANDOFF_ID: handoff.id,
       POLYLAB_AGENT_HANDOFF_PATH: join(this.workspaceRoot, requestPath),
@@ -2537,15 +2575,39 @@ function normalizeAgentSession(session: AgentSession): AgentSession {
 
 function defaultAgentRuntime(): AgentRuntimeConfig {
   const command = process.env.POLYLAB_CODEX_COMMAND;
+  const providerProfiles = defaultProviderProfiles(command);
   return {
     runtime: "pi-mono",
     provider: "codex",
-    state: command ? "configured" : "not-configured",
+    state: providerProfiles.length ? "configured" : "not-configured",
     codexCommand: command,
-    credentialHint: "Use the Codex subscription CLI or set POLYLAB_CODEX_COMMAND; credentials stay outside PolyLab artifacts.",
+    selectedProviderId: providerProfiles[0]?.id,
+    providerProfiles,
+    credentialHint: "Configure a provider profile for Pi mono. Codex CLI uses local CODEX_HOME auth and credentials stay outside PolyLab artifacts.",
     workspaceIndexPath: "artifacts/agents/workspace-index.json",
     updatedAt: now()
   };
+}
+
+function defaultProviderProfiles(command?: string): AgentProviderProfile[] {
+  return [{
+    id: "codex-default",
+    name: "Codex",
+    provider: "codex",
+    command: command || "builtin:codex-cli",
+    homePath: process.env.CODEX_HOME || "~/.codex",
+    env: {},
+    state: "configured",
+    authHint: "Run codex login for ~/.codex.",
+    updatedAt: now()
+  }];
+}
+
+function providerProfileEnv(profile: AgentProviderProfile): Record<string, string> {
+  const env: Record<string, string> = { ...(profile.env ?? {}) };
+  if (profile.shadowHomePath) env.CODEX_HOME = profile.shadowHomePath;
+  else if (profile.homePath) env.CODEX_HOME = profile.homePath;
+  return env;
 }
 
 async function runAgentCommand(commandLine: string, cwd: string, extraEnv: Record<string, string>) {

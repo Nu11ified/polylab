@@ -993,6 +993,12 @@ describe("PolyLab API", () => {
       expect(runtime.status).toBe(200);
       await expect(runtime.json()).resolves.toMatchObject({ runtime: "pi-mono", provider: "codex" });
 
+      await app.handle(new Request("http://local.test/api/agents/runtime", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ providerProfiles: [], selectedProviderId: undefined, codexCommand: "", state: "not-configured" })
+      }));
+
       const skipped = await app.handle(new Request(`http://local.test/api/agents/sessions/${session.id}/handoff`, { method: "POST" }));
       expect(skipped.status).toBe(200);
       const skippedJson = await skipped.json() as { state: string; requestPath: string };
@@ -1020,6 +1026,46 @@ describe("PolyLab API", () => {
       const snapshotJson = await snapshot.json() as { agentHandoffs: unknown[]; artifacts: Array<{ path: string }> };
       expect(snapshotJson.agentHandoffs).toHaveLength(2);
       expect(snapshotJson.artifacts.some((artifact) => artifact.path === dispatchedJson.resultPath)).toBe(true);
+    } finally {
+      if (previousCommand === undefined) delete process.env.POLYLAB_CODEX_COMMAND;
+      else process.env.POLYLAB_CODEX_COMMAND = previousCommand;
+      await rm(join(dataDir, ".."), { recursive: true, force: true });
+    }
+  });
+
+  it("dispatches Pi mono handoffs through selected provider profiles", async () => {
+    const previousCommand = process.env.POLYLAB_CODEX_COMMAND;
+    delete process.env.POLYLAB_CODEX_COMMAND;
+    const dataDir = join(import.meta.dir, "..", ".test-data", `agent-provider-${crypto.randomUUID()}`, ".polylab");
+    const app = createApp(new WorkspaceStore({ dataDir }));
+    try {
+      const created = await app.handle(new Request("http://local.test/api/agents/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ formulaId: "softmax-jacobian" })
+      }));
+      const session = await created.json() as { id: string };
+      const command = `${process.execPath} -e "console.log(process.env.CODEX_HOME + ':' + process.env.POLYLAB_PROFILE_MARKER)"`;
+      const configured = await app.handle(new Request("http://local.test/api/agents/providers", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "codex-personal",
+          name: "Codex Personal",
+          command,
+          homePath: "~/.codex",
+          shadowHomePath: "/tmp/polylab-codex-personal",
+          env: { POLYLAB_PROFILE_MARKER: "personal" }
+        })
+      }));
+      expect(configured.status).toBe(200);
+      await expect(configured.json()).resolves.toMatchObject({ selectedProviderId: "codex-personal" });
+
+      const dispatched = await app.handle(new Request(`http://local.test/api/agents/sessions/${session.id}/handoff`, { method: "POST" }));
+      expect(dispatched.status).toBe(200);
+      const dispatchedJson = await dispatched.json() as { state: string; stdout: string };
+      expect(dispatchedJson.state).toBe("completed");
+      expect(dispatchedJson.stdout).toContain("/tmp/polylab-codex-personal:personal");
     } finally {
       if (previousCommand === undefined) delete process.env.POLYLAB_CODEX_COMMAND;
       else process.env.POLYLAB_CODEX_COMMAND = previousCommand;

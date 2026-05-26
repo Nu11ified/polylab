@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { Bot, Braces, CheckCircle2, Cloud, Code2, Command, Database, Download, FileText, FolderKanban, FolderOpen, Gauge, GitBranch, Globe2, KeyRound, MessageSquare, Monitor, Moon, Play, Plus, Save, Search, Settings, ShieldCheck, Sigma, Sun, Terminal, Zap } from "lucide-react";
-import type { ActivityEvent, AgentHandoff, AgentRuntimeConfig, AgentSession, AgentTask, ArtifactContent, ArtifactRecord, AuthStatus, BenchmarkRun, ClientPerformanceStatus, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, ExecutionLog, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitCommitResult, GitConflict, GitOperationResult, GitRemote, GitStatus, GitVerificationSummary, PatchReview, PermissionCheck, PermissionDecision, PersistenceEvent, PersistenceStatus, ProjectSummary, ResearchDocument, SyncRun, VerificationCheck, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
+import type { ActivityEvent, AgentHandoff, AgentProviderProfile, AgentRuntimeConfig, AgentSession, AgentTask, ArtifactContent, ArtifactRecord, AuthStatus, BenchmarkRun, ClientPerformanceStatus, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, ExecutionLog, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitCommitResult, GitConflict, GitOperationResult, GitRemote, GitStatus, GitVerificationSummary, PatchReview, PermissionCheck, PermissionDecision, PersistenceEvent, PersistenceStatus, ProjectSummary, ResearchDocument, SyncRun, VerificationCheck, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
 import { enqueueMutation, markMutationFailed, markMutationSynced, pendingMutationCount, reconcileOptimisticFormula, type LocalMutation } from "./optimistic";
 import { collectPerformanceStatus, PERFORMANCE_BUDGETS, registerPolylabServiceWorker } from "./performance";
 import "./styles.css";
@@ -63,6 +63,9 @@ interface ClientState {
   contextCollapsed: boolean;
   theme: ThemeMode;
   codexCommandDraft: string;
+  providerNameDraft: string;
+  providerHomeDraft: string;
+  providerShadowHomeDraft: string;
   selectedFormulaId: string;
   selectedFilePath: string;
   workspaceFiles: WorkspaceFile[];
@@ -115,6 +118,9 @@ const initialState: ClientState = {
   contextCollapsed: true,
   theme: "system",
   codexCommandDraft: "",
+  providerNameDraft: "Codex",
+  providerHomeDraft: "~/.codex",
+  providerShadowHomeDraft: "",
   selectedFormulaId: "softmax-jacobian",
   selectedFilePath: "",
   workspaceFiles: [],
@@ -210,6 +216,9 @@ function readCachedState(): ClientState {
       contextCollapsed: parsed.contextCollapsed ?? true,
       theme: parsed.theme ?? "system",
       codexCommandDraft: parsed.codexCommandDraft ?? parsed.agentRuntime.codexCommand ?? "",
+      providerNameDraft: parsed.providerNameDraft ?? "Codex",
+      providerHomeDraft: parsed.providerHomeDraft ?? parsed.agentRuntime.providerProfiles?.[0]?.homePath ?? "~/.codex",
+      providerShadowHomeDraft: parsed.providerShadowHomeDraft ?? "",
       formulas: parsed.formulas.map(normalizeFormula),
       documents: parsed.documents.map(normalizeDocument)
     };
@@ -910,24 +919,62 @@ function SettingsView() {
 
         <section className="surface-panel">
           <div className="surface-heading">
-            <strong>Pi mono / Codex</strong>
-            <small>{state.agentRuntime.state}</small>
+            <strong>Providers</strong>
+            <small>{state.agentRuntime.selectedProviderId ?? "none"}</small>
           </div>
+          <select
+            className="git-message"
+            value={state.agentRuntime.selectedProviderId ?? state.agentRuntime.providerProfiles?.[0]?.id ?? ""}
+            onChange={(event) => void selectAgentProvider(event.target.value)}
+            aria-label="Pi mono provider"
+          >
+            {(state.agentRuntime.providerProfiles ?? []).map((profile) => (
+              <option key={profile.id} value={profile.id}>{profile.name}</option>
+            ))}
+          </select>
           <div className="codex-setup-grid">
-            <button onClick={() => void configureBuiltinCodexCli()}><Bot size={14} />Use Codex CLI</button>
+            <button onClick={() => void saveProviderProfile()}><Bot size={14} />Connect to Pi mono</button>
             <button onClick={() => void startCodexLogin()}><KeyRound size={14} />Sign in</button>
           </div>
+          <input
+            className="git-message"
+            value={state.providerNameDraft}
+            onChange={(event) => updateState((draft) => ({ ...draft, providerNameDraft: event.target.value }))}
+            aria-label="Provider name"
+            placeholder="Codex Work"
+          />
+          <input
+            className="git-message"
+            value={state.providerHomeDraft}
+            onChange={(event) => updateState((draft) => ({ ...draft, providerHomeDraft: event.target.value }))}
+            aria-label="Codex home"
+            placeholder="~/.codex"
+          />
+          <input
+            className="git-message"
+            value={state.providerShadowHomeDraft}
+            onChange={(event) => updateState((draft) => ({ ...draft, providerShadowHomeDraft: event.target.value }))}
+            aria-label="Shadow Codex home"
+            placeholder="Optional shadow home, e.g. ~/.codex_personal"
+          />
           <input
             className="git-message"
             value={state.codexCommandDraft}
             onChange={(event) => updateState((draft) => ({ ...draft, codexCommandDraft: event.target.value }))}
             aria-label="Codex command"
-            placeholder="codex --model gpt-5"
+            placeholder="Advanced command, default builtin:codex-cli"
           />
           <div className="settings-actions">
-            <button className="commit-button" onClick={() => void saveAgentRuntimeConfig()}><Save size={14} />Save command</button>
+            <button className="commit-button" onClick={() => void saveProviderProfile()}><Save size={14} />Save provider</button>
             <button onClick={() => updateState((draft) => ({ ...draft, codexCommandDraft: "" }))}><KeyRound size={14} />Clear draft</button>
           </div>
+          {(state.agentRuntime.providerProfiles ?? []).map((profile) => (
+            <div className="provider-profile-row" key={profile.id}>
+              <span>{profile.name}</span>
+              <small>{profile.homePath}{profile.shadowHomePath ? ` / ${profile.shadowHomePath}` : ""}</small>
+              <small data-status={profile.state}>{profile.state}</small>
+            </div>
+          ))}
           <small>{state.agentRuntime.credentialHint}</small>
         </section>
 
@@ -1924,6 +1971,9 @@ async function hydrate() {
       patches: snapshot.patches,
       agentRuntime: snapshot.agentRuntime,
       codexCommandDraft: draft.codexCommandDraft || (snapshot.agentRuntime.codexCommand ?? ""),
+      providerNameDraft: draft.providerNameDraft || (snapshot.agentRuntime.providerProfiles?.[0]?.name ?? "Codex"),
+      providerHomeDraft: draft.providerHomeDraft || (snapshot.agentRuntime.providerProfiles?.[0]?.homePath ?? "~/.codex"),
+      providerShadowHomeDraft: draft.providerShadowHomeDraft || (snapshot.agentRuntime.providerProfiles?.[0]?.shadowHomePath ?? ""),
       agentHandoffs: snapshot.agentHandoffs,
       agentSessions: snapshot.agentSessions,
       documents: snapshot.documents.map(normalizeDocument),
@@ -2165,11 +2215,6 @@ async function saveAgentRuntimeConfig(commandOverride?: string) {
   }
 }
 
-async function configureBuiltinCodexCli() {
-  updateState((draft) => ({ ...draft, codexCommandDraft: "builtin:codex-cli" }));
-  await saveAgentRuntimeConfig("builtin:codex-cli");
-}
-
 async function startCodexLogin() {
   const bridge = window.polylabDesktop?.codex;
   if (!bridge) {
@@ -2183,6 +2228,68 @@ async function startCodexLogin() {
   }
   const result = await bridge.login();
   appendLog(result.ok ? "Started Codex sign-in flow" : `Codex sign-in failed: ${result.reason ?? "unknown error"}`);
+}
+
+async function saveProviderProfile() {
+  const snapshot = store.getSnapshot();
+  const name = snapshot.providerNameDraft.trim() || "Codex";
+  const homePath = snapshot.providerHomeDraft.trim() || "~/.codex";
+  const shadowHomePath = snapshot.providerShadowHomeDraft.trim();
+  const command = snapshot.codexCommandDraft.trim() || "builtin:codex-cli";
+  appendLog(`Connecting ${name} to Pi mono`);
+  try {
+    const runtime = await api<AgentRuntimeConfig>("/api/agents/providers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "codex",
+        name,
+        provider: "codex",
+        command,
+        homePath,
+        shadowHomePath: shadowHomePath || undefined,
+        state: "configured",
+        authHint: shadowHomePath ? `Use CODEX_HOME=${shadowHomePath} codex login for this profile.` : `Use CODEX_HOME=${homePath} codex login for this profile.`
+      } satisfies Partial<AgentProviderProfile>)
+    });
+    updateState((draft) => ({
+      ...draft,
+      agentRuntime: runtime,
+      codexCommandDraft: command,
+      providerHomeDraft: homePath,
+      providerShadowHomeDraft: shadowHomePath
+    }));
+    await hydrate();
+  } catch {
+    appendLog("Provider profile configuration failed because the local server is unavailable");
+  }
+}
+
+async function selectAgentProvider(providerId: string) {
+  const snapshot = store.getSnapshot();
+  const profile = snapshot.agentRuntime.providerProfiles?.find((item) => item.id === providerId);
+  try {
+    const runtime = await api<AgentRuntimeConfig>("/api/agents/runtime", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...snapshot.agentRuntime,
+        selectedProviderId: providerId,
+        codexCommand: profile?.command ?? snapshot.agentRuntime.codexCommand,
+        credentialHint: profile ? `${profile.name} connected to Pi mono (${profile.homePath}).` : snapshot.agentRuntime.credentialHint
+      })
+    });
+    updateState((draft) => ({
+      ...draft,
+      agentRuntime: runtime,
+      providerNameDraft: profile?.name ?? draft.providerNameDraft,
+      providerHomeDraft: profile?.homePath ?? draft.providerHomeDraft,
+      providerShadowHomeDraft: profile?.shadowHomePath ?? "",
+      codexCommandDraft: profile?.command ?? runtime.codexCommand ?? draft.codexCommandDraft
+    }));
+  } catch {
+    appendLog("Provider selection failed because the local server is unavailable");
+  }
 }
 
 async function exportAgentReplay(sessionId: string) {

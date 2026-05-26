@@ -1,6 +1,6 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
-import type { AgentRuntimeConfig, BenchmarkRequest, CloudProviderConfig, DeploymentRoute, ExecutionRequest, FormulaCard, PermissionCategory, PermissionMode, ProjectSummary, ResearchDocument } from "@polylab/types";
+import type { AgentProviderProfile, AgentRuntimeConfig, BenchmarkRequest, CloudProviderConfig, DeploymentRoute, ExecutionRequest, FormulaCard, PermissionCategory, PermissionMode, ProjectSummary, ResearchDocument } from "@polylab/types";
 import { authStatus, isAuthorizedRequest } from "./auth";
 import { routeExecution, runExecution } from "./execution";
 import { gitAddRemote, gitBranches, gitCheckoutBranch, gitClone, gitCommit, gitConflicts, gitCreateBranch, gitDiff, gitInit, gitPull, gitPush, gitRemotes, gitResolveConflict, gitStageAll, gitStatus } from "./git";
@@ -213,6 +213,10 @@ export function createApp(store = new WorkspaceStore()) {
   .post("/api/agents/runtime", async ({ body }) => {
     await store.requirePermission("write-files", "configure agent runtime", "sessions/agent-runtime.json");
     return store.configureAgentRuntime(body as Partial<AgentRuntimeConfig>);
+  })
+  .post("/api/agents/providers", async ({ body }) => {
+    await store.requirePermission("write-files", "configure agent provider", "sessions/agent-runtime.json");
+    return store.upsertAgentProviderProfile(body as Partial<AgentProviderProfile>);
   })
   .get("/api/agents/handoffs", () => store.agentHandoffs())
   .post("/api/agents/session", ({ body }) => store.createAgentSession(body as { title?: string; formulaId?: string }))

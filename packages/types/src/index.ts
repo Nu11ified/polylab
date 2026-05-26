@@ -231,8 +231,23 @@ export interface AgentRuntimeConfig {
   provider: "codex";
   state: "not-configured" | "configured" | "connected" | "unavailable";
   codexCommand?: string;
+  selectedProviderId?: string;
+  providerProfiles?: AgentProviderProfile[];
   credentialHint: string;
   workspaceIndexPath: string;
+  updatedAt: string;
+}
+
+export interface AgentProviderProfile {
+  id: string;
+  name: string;
+  provider: "codex";
+  command: "builtin:codex-cli" | string;
+  homePath: string;
+  shadowHomePath?: string;
+  env?: Record<string, string>;
+  state: "not-configured" | "configured" | "connected" | "unavailable";
+  authHint?: string;
   updatedAt: string;
 }
 
