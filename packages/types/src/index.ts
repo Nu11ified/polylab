@@ -5,6 +5,7 @@ export type VerificationStatus = "queued" | "running" | "passed" | "failed" | "w
 export interface ProjectSummary {
   id: string;
   name: string;
+  workspaceRoot?: string;
   branch: string;
   runtime: RuntimeTarget;
   agentRuntime: "pi-mono";

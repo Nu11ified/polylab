@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
-import { Bot, Braces, CheckCircle2, Cloud, Code2, Command, Database, Download, FileText, FolderKanban, Gauge, GitBranch, Globe2, KeyRound, MessageSquare, Monitor, Moon, Play, Plus, Save, Search, Settings, ShieldCheck, Sigma, Sun, Terminal, Zap } from "lucide-react";
+import { Bot, Braces, CheckCircle2, Cloud, Code2, Command, Database, Download, FileText, FolderKanban, FolderOpen, Gauge, GitBranch, Globe2, KeyRound, MessageSquare, Monitor, Moon, Play, Plus, Save, Search, Settings, ShieldCheck, Sigma, Sun, Terminal, Zap } from "lucide-react";
 import type { ActivityEvent, AgentHandoff, AgentRuntimeConfig, AgentSession, AgentTask, ArtifactContent, ArtifactRecord, AuthStatus, BenchmarkRun, ClientPerformanceStatus, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, ExecutionLog, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitCommitResult, GitConflict, GitOperationResult, GitRemote, GitStatus, GitVerificationSummary, PatchReview, PermissionCheck, PermissionDecision, PersistenceEvent, PersistenceStatus, ProjectSummary, ResearchDocument, SyncRun, VerificationCheck, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
 import { enqueueMutation, markMutationFailed, markMutationSynced, pendingMutationCount, reconcileOptimisticFormula, type LocalMutation } from "./optimistic";
 import { collectPerformanceStatus, PERFORMANCE_BUDGETS, registerPolylabServiceWorker } from "./performance";
@@ -323,24 +323,32 @@ function App() {
 
   useKeyboard(commands);
 
+  const project = selectedProject(state);
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <button className="brand" onClick={() => setView("home")}><Sigma size={18} />PolyLab</button>
+    <div className="app-shell lab-shell">
+      <aside className="lab-sidebar">
+        <div className="lab-brand-row">
+          <button className="brand lab-brand" onClick={() => setView("home")}><Sigma size={18} />PolyLab</button>
+          <button className="lab-icon-button" aria-label="Settings" onClick={() => setView("settings")}><Settings size={15} /></button>
+        </div>
         <ProjectSwitcher state={state} />
-        <button className="command-button" onClick={() => toggleCommand(true)}><Command size={15} />Command</button>
+        <div className="lab-sidebar-actions">
+          <button className="lab-primary-action" onClick={() => void refreshWorkspaceFiles()}><FolderOpen size={15} />Open project</button>
+          <button className="lab-icon-button" aria-label="Command palette" onClick={() => toggleCommand(true)}><Command size={15} /></button>
+        </div>
 
         <ThreadList state={state} />
 
-        <NavSection label="Project">
+        <NavSection label="Workspace">
           <NavItem icon={<Search size={15} />} label="Overview" active={state.activeView === "home"} onClick={() => setView("home")} />
-          <NavItem icon={<Code2 size={15} />} label="Code" active={state.activeView === "code"} onClick={() => setView("code")} />
+          <NavItem icon={<Sigma size={15} />} label="Math spec" active={state.activeView === "math"} onClick={() => setView("math")} />
           <NavItem icon={<CheckCircle2 size={15} />} label="Verify" active={state.activeView === "verify"} onClick={() => setView("verify")} />
-          <NavItem icon={<Bot size={15} />} label="Agent" active={state.activeView === "diff" && Boolean(state.agentSessions[0])} onClick={() => setView("diff")} />
+          <NavItem icon={<Code2 size={15} />} label="Implementation" active={state.activeView === "code"} onClick={() => setView("code")} />
+          <NavItem icon={<Bot size={15} />} label="Agent thread" active={state.activeView === "diff" && Boolean(state.agentSessions[0])} onClick={() => setView("diff")} />
         </NavSection>
 
         <NavSection label="Build">
-          <NavItem icon={<Sigma size={15} />} label="Math" active={state.activeView === "math"} onClick={() => setView("math")} />
           <NavItem icon={<Braces size={15} />} label="Patches" active={state.activeView === "diff"} onClick={() => setView("diff")} />
           <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
         </NavSection>
@@ -363,16 +371,17 @@ function App() {
         </NavSection>
       </aside>
 
-      <main className="workspace">
-        <header className="topbar">
+      <main className="workspace lab-workspace">
+        <header className="topbar lab-topbar">
           <div className="top-meta">
-            <span>{selectedProject(state).name}</span>
-            <span><GitBranch size={14} />{selectedProject(state).branch}</span>
+            <span className="lab-title">{project.name}</span>
+            <span><GitBranch size={14} />{project.branch}</span>
             <span><MessageSquare size={14} />{selectedThreadLabel(state)}</span>
             <span><Bot size={14} />{state.agentRuntime.state}</span>
-            <span><Zap size={14} />{pendingMutationCount(state.pendingMutations)} queued</span>
+            {project.workspaceRoot ? <span className="lab-path">{project.workspaceRoot}</span> : null}
           </div>
           <div className="top-actions">
+            <button onClick={() => void openWorkspaceRoot()}><FolderOpen size={14} />Editor</button>
             <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
             <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run agent</button>
           </div>
@@ -380,7 +389,7 @@ function App() {
         <ViewSwitch view={state.activeView} formula={activeFormula} />
       </main>
 
-      <InspectorPanel state={state} />
+      <CodeContextPanel state={state} />
 
       {state.commandOpen ? <CommandPalette commands={commands} /> : null}
     </div>
@@ -547,62 +556,77 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
   );
 }
 
-function InspectorPanel({ state }: { state: ClientState }) {
-  const latestSession = state.agentSessions.find((session) => session.id === state.selectedThreadId) ?? state.agentSessions[0];
-  const project = selectedProject(state);
+function CodeContextPanel({ state }: { state: ClientState }) {
+  const files = state.workspaceFiles.filter((file) => file.kind === "file");
+  const activeSymbols = state.workspaceSymbols.filter((symbol) => symbol.path === state.selectedFilePath);
+  const activeDiagnostics = state.workspaceDiagnostics.filter((diagnostic) => diagnostic.path === state.selectedFilePath);
   const fileName = state.editorFile?.path ?? state.selectedFilePath;
+  const source = state.editorFile?.content ?? "Select a file from this project.";
   return (
-    <aside className="inspector-panel">
+    <aside className="inspector-panel lab-code-panel">
       <section className="inspector-card">
         <div className="surface-heading">
-          <strong>Context</strong>
-          <small>{project.branch}</small>
+          <strong>Implementation</strong>
+          <small>{files.length} files</small>
         </div>
-        <div className="status-stack">
-          <span>{project.name}</span>
-          <small>{selectedThreadLabel(state)}</small>
+        <div className="lab-code-actions">
+          <button onClick={() => void refreshWorkspaceFiles()}><Search size={14} />Index</button>
+          <button onClick={() => void openExternalEditor()} disabled={!state.editorFile}><FolderOpen size={14} />Open</button>
         </div>
-        {fileName ? <div className="data-row"><span>{fileName}</span><small>file</small></div> : null}
+      </section>
+
+      <section className="inspector-card lab-file-browser">
+        <div className="surface-heading">
+          <strong>Files</strong>
+          <small>{fileName ? fileName.split("/").pop() : "none"}</small>
+        </div>
+        <div className="lab-file-list">
+          {files.slice(0, 24).map((file) => (
+            <button key={file.path} className={file.path === state.selectedFilePath ? "active" : ""} onClick={() => void openWorkspaceFile(file.path)}>
+              <span>{file.path}</span>
+              <small>{file.language ?? "text"}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="inspector-card lab-source-card">
+        <div className="surface-heading">
+          <strong>{fileName ? fileName.split("/").pop() : "Source"}</strong>
+          <small>{state.editorFile?.language ?? "text"}</small>
+        </div>
+        <pre>{source}</pre>
       </section>
 
       <section className="inspector-card">
         <div className="surface-heading">
-          <strong>Pi mono</strong>
-          <small>{state.agentRuntime.state}</small>
+          <strong>Symbols</strong>
+          <small>{activeDiagnostics.length} diagnostics</small>
         </div>
-        <div className="status-stack">
-          <span>{latestSession?.state ?? "ready"}</span>
-          <small>{latestSession ? `${latestSession.attempts}/${latestSession.maxAttempts} attempts` : "codex handoff idle"}</small>
-        </div>
-        <div className="mini-actions">
-          <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
-          {latestSession ? <button onClick={() => void exportAgentReplay(latestSession.id)}><Download size={14} />Replay</button> : null}
-          {latestSession ? <button onClick={() => void dispatchAgentHandoff(latestSession.id)}><Command size={14} />Codex</button> : null}
-        </div>
+        {activeSymbols.slice(0, 8).map((symbol) => (
+          <div className="data-row" key={symbol.id}>
+            <span>{symbol.name}</span>
+            <small>{symbol.kind} L{symbol.line}</small>
+          </div>
+        ))}
+        {activeDiagnostics.slice(0, 5).map((diagnostic) => (
+          <div className="data-row" key={diagnostic.id}>
+            <span>{diagnostic.message}</span>
+            <small data-status={diagnostic.severity}>L{diagnostic.line}</small>
+          </div>
+        ))}
+        {activeSymbols.length === 0 && activeDiagnostics.length === 0 ? <small>No symbols or diagnostics for this file.</small> : null}
       </section>
 
       <section className="inspector-card">
         <div className="surface-heading">
           <strong>Checks</strong>
-          <small>{state.formulas[0]?.status ?? "queued"}</small>
+          <small>{state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.status ?? "queued"}</small>
         </div>
         {(state.formulas.find((formula) => formula.id === state.selectedFormulaId)?.verificationHistory[0]?.checks ?? []).slice(0, 7).map((check) => (
           <div className="data-row" key={check.name}>
             <span>{check.name}</span>
             <small data-status={check.status}>{check.status}</small>
-          </div>
-        ))}
-      </section>
-
-      <section className="inspector-card">
-        <div className="surface-heading">
-          <strong>Logs</strong>
-          <small>{state.logs.length}</small>
-        </div>
-        {state.logs.slice(0, 6).map((log) => (
-          <div className="data-row" key={log.id}>
-            <span>{log.message}</span>
-            <small>{new Date(log.createdAt).toLocaleTimeString()}</small>
           </div>
         ))}
       </section>
@@ -1558,7 +1582,9 @@ function setTheme(theme: ThemeMode) {
 
 function applyTheme(theme: ThemeMode) {
   const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.dataset.theme = theme === "system" ? (systemDark ? "dark" : "light") : theme;
+  const resolved = theme === "system" ? (systemDark ? "dark" : "light") : theme;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.classList.toggle("dark", resolved === "dark");
 }
 
 function selectedProject(state: ClientState): ProjectSummary {
@@ -1712,6 +1738,20 @@ async function openExternalEditor() {
     appendLog(launch.message);
   } catch {
     appendLog("External editor launch failed. Check that the selected editor command is installed.");
+  }
+}
+
+async function openWorkspaceRoot() {
+  const { selectedEditorPresetId } = store.getSnapshot();
+  try {
+    const launch = await api<ExternalEditorLaunch>("/api/editor/open", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ presetId: selectedEditorPresetId })
+    });
+    appendLog(launch.message);
+  } catch {
+    appendLog("Project open failed. Check the editor preset in Settings.");
   }
 }
 

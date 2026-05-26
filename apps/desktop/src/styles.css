@@ -1595,3 +1595,276 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Project workbench shell */
+.lab-shell {
+  grid-template-columns: 272px minmax(520px, 1fr) 460px;
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--bg);
+}
+
+.lab-sidebar,
+.lab-workspace,
+.lab-code-panel {
+  min-width: 0;
+  min-height: 0;
+}
+
+.lab-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 88%, var(--panel) 12%);
+}
+
+.lab-brand-row,
+.lab-sidebar-actions,
+.lab-code-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-brand-row {
+  justify-content: space-between;
+}
+
+.lab-brand {
+  min-width: 0;
+  flex: 1;
+}
+
+.lab-icon-button,
+.lab-primary-action,
+.lab-sidebar-actions button,
+.lab-code-actions button,
+.lab-topbar button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.lab-icon-button {
+  width: 32px;
+  padding: 0;
+}
+
+.lab-primary-action {
+  flex: 1;
+  padding: 0 10px;
+  justify-content: flex-start;
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line) 64%);
+}
+
+.lab-primary-action:hover,
+.lab-sidebar-actions button:hover,
+.lab-code-actions button:hover,
+.lab-topbar button:hover,
+.thread-row:hover,
+.nav-item:hover {
+  background: color-mix(in srgb, var(--panel) 80%, var(--accent) 8%);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line) 58%);
+}
+
+.lab-topbar {
+  height: 54px;
+  background: var(--panel);
+}
+
+.lab-title {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.lab-path {
+  max-width: 34vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-switcher {
+  padding: 9px;
+}
+
+.project-switcher small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-section-label {
+  margin-top: 6px;
+}
+
+.nav-item,
+.thread-row {
+  min-height: 32px;
+}
+
+.thread-row small {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-hero {
+  min-height: auto;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.home-hero h1 {
+  font-size: 20px;
+}
+
+.home-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.home-actions button,
+.top-actions button:last-child,
+.home-actions button:first-child,
+.commit-button,
+.agent-card button:first-of-type {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.top-actions button:last-child,
+.home-actions button:first-child,
+.commit-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line) 58%);
+  background: color-mix(in srgb, var(--panel) 80%, var(--accent) 8%);
+}
+
+.lab-code-panel {
+  grid-template-rows: auto minmax(120px, 0.32fr) minmax(180px, 1fr) auto auto;
+  padding: 12px;
+  background: color-mix(in srgb, var(--bg) 88%, var(--panel) 12%);
+}
+
+.lab-file-browser,
+.lab-source-card {
+  overflow: hidden;
+}
+
+.lab-file-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  overflow: auto;
+}
+
+.lab-file-list button {
+  min-width: 0;
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lab-file-list button.active {
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+.lab-file-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lab-source-card pre {
+  min-height: 0;
+  max-height: 42vh;
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.surface-panel,
+.inspector-card,
+.workflow-tile,
+.home-hero {
+  box-shadow: none;
+}
+
+.dark body,
+:root[data-theme="dark"] body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.dark .workspace,
+.dark .lab-workspace,
+.dark .topbar,
+.dark .surface-panel,
+.dark .inspector-card,
+.dark .home-hero,
+.dark .workflow-tile,
+.dark .project-switcher,
+.dark .palette,
+.dark .git-message,
+.dark input,
+.dark select,
+.dark textarea {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.dark .lab-sidebar,
+.dark .lab-code-panel {
+  background: color-mix(in srgb, var(--bg) 88%, var(--panel) 12%);
+}
+
+@media (max-width: 1240px) {
+  .lab-shell {
+    grid-template-columns: 248px minmax(0, 1fr);
+  }
+
+  .lab-code-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .lab-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .lab-sidebar {
+    display: none;
+  }
+}

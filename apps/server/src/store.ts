@@ -113,7 +113,11 @@ export class WorkspaceStore {
   }
 
   async projects(): Promise<ProjectSummary[]> {
-    return this.readJson("project.json", [defaultProject()]);
+    const projects = await this.readJson("project.json", [defaultProject()]);
+    return projects.map((project, index) => ({
+      ...project,
+      workspaceRoot: project.workspaceRoot ?? (index === 0 ? this.workspaceRoot : undefined)
+    }));
   }
 
   async project(id: string): Promise<ProjectSummary> {
