@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
-import { Bot, Braces, CheckCircle2, Cloud, Code2, Command, Database, Download, FileText, Gauge, GitBranch, Globe2, Play, Plus, Search, ShieldCheck, Sigma, Terminal, Zap } from "lucide-react";
+import { Bot, Braces, CheckCircle2, Cloud, Code2, Command, Database, Download, FileText, FolderKanban, Gauge, GitBranch, Globe2, KeyRound, MessageSquare, Monitor, Moon, Play, Plus, Save, Search, Settings, ShieldCheck, Sigma, Sun, Terminal, Zap } from "lucide-react";
 import type { ActivityEvent, AgentHandoff, AgentRuntimeConfig, AgentSession, AgentTask, ArtifactContent, ArtifactRecord, AuthStatus, BenchmarkRun, ClientPerformanceStatus, CloudDispatchResult, CloudExecutionJob, CloudJobLog, CloudProviderConfig, DependencyPlan, DeploymentApplyResult, DeploymentMutation, DeploymentPlan, ExecutionLog, ExecutionRun, ExperimentRun, ExternalEditorLaunch, ExternalEditorPreset, FormulaCard, GitCommitResult, GitConflict, GitOperationResult, GitRemote, GitStatus, GitVerificationSummary, PatchReview, PermissionCheck, PermissionDecision, PersistenceEvent, PersistenceStatus, ProjectSummary, ResearchDocument, SyncRun, VerificationCheck, WorkspaceDiagnostic, WorkspaceFile, WorkspaceFileContent, WorkspaceSnapshot, WorkspaceSymbol } from "@polylab/types";
 import { enqueueMutation, markMutationFailed, markMutationSynced, pendingMutationCount, reconcileOptimisticFormula, type LocalMutation } from "./optimistic";
 import { collectPerformanceStatus, PERFORMANCE_BUDGETS, registerPolylabServiceWorker } from "./performance";
@@ -8,7 +8,8 @@ import "./styles.css";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
-type ViewId = "home" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs";
+type ViewId = "home" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs" | "settings";
+type ThemeMode = "light" | "dark" | "system";
 
 interface CommandItem {
   id: string;
@@ -47,6 +48,10 @@ declare global {
 interface ClientState {
   activeView: ViewId;
   commandOpen: boolean;
+  selectedProjectId: string;
+  selectedThreadId: string;
+  theme: ThemeMode;
+  codexCommandDraft: string;
   selectedFormulaId: string;
   selectedFilePath: string;
   workspaceFiles: WorkspaceFile[];
@@ -92,6 +97,10 @@ interface ClientState {
 const initialState: ClientState = {
   activeView: "home",
   commandOpen: false,
+  selectedProjectId: "local-research",
+  selectedThreadId: "general",
+  theme: "system",
+  codexCommandDraft: "",
   selectedFormulaId: "softmax-jacobian",
   selectedFilePath: "",
   workspaceFiles: [],
@@ -180,6 +189,10 @@ function readCachedState(): ClientState {
     return {
       ...parsed,
       authToken: "",
+      selectedProjectId: parsed.selectedProjectId ?? parsed.projects[0]?.id ?? initialState.selectedProjectId,
+      selectedThreadId: parsed.selectedThreadId ?? "general",
+      theme: parsed.theme ?? "system",
+      codexCommandDraft: parsed.codexCommandDraft ?? parsed.agentRuntime.codexCommand ?? "",
       formulas: parsed.formulas.map(normalizeFormula),
       documents: parsed.documents.map(normalizeDocument)
     };
@@ -283,6 +296,15 @@ function App() {
     void hydrate();
   }, []);
 
+  useEffect(() => {
+    applyTheme(state.theme);
+    if (state.theme !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => applyTheme("system");
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, [state.theme]);
+
   const commands = useMemo<CommandItem[]>(() => [
     { id: "ask", title: "Ask agent about selection", shortcut: "Cmd+K", run: () => toggleCommand(true) },
     { id: "complex-task", title: "Run complex agent task", shortcut: "Cmd+Shift+K", run: () => void runAgentWorkflow() },
@@ -292,6 +314,7 @@ function App() {
     { id: "sandbox", title: "Run Docker sandbox", shortcut: "Cmd+Option+S", view: "logs", run: () => void runSandboxExperiment() },
     { id: "generate", title: "Generate implementation", shortcut: "Cmd+Option+G", view: "diff", run: () => void generatePatch() },
     { id: "performance", title: "Open performance panel", shortcut: "Cmd+Option+P", view: "performance", run: () => setView("performance") },
+    { id: "settings", title: "Open settings", shortcut: "Cmd+,", view: "settings", run: () => setView("settings") },
     { id: "new-formula", title: "Create formula", shortcut: "Cmd+Option+N", view: "math", run: () => void createFormula() },
     { id: "diff", title: "Open diff viewer", shortcut: "Cmd+Option+D", view: "diff", run: () => setView("diff") },
     { id: "math", title: "Open math viewer", shortcut: "Cmd+Option+M", view: "math", run: () => setView("math") },
@@ -304,14 +327,22 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <button className="brand" onClick={() => setView("home")}><Sigma size={18} />PolyLab</button>
+        <ProjectSwitcher state={state} />
         <button className="command-button" onClick={() => toggleCommand(true)}><Command size={15} />Command</button>
 
-        <NavSection label="Build">
+        <ThreadList state={state} />
+
+        <NavSection label="Project">
           <NavItem icon={<Search size={15} />} label="Overview" active={state.activeView === "home"} onClick={() => setView("home")} />
           <NavItem icon={<Code2 size={15} />} label="Code" active={state.activeView === "code"} onClick={() => setView("code")} />
-          <NavItem icon={<Sigma size={15} />} label="Math" active={state.activeView === "math"} onClick={() => setView("math")} />
           <NavItem icon={<CheckCircle2 size={15} />} label="Verify" active={state.activeView === "verify"} onClick={() => setView("verify")} />
+          <NavItem icon={<Bot size={15} />} label="Agent" active={state.activeView === "diff" && Boolean(state.agentSessions[0])} onClick={() => setView("diff")} />
+        </NavSection>
+
+        <NavSection label="Build">
+          <NavItem icon={<Sigma size={15} />} label="Math" active={state.activeView === "math"} onClick={() => setView("math")} />
           <NavItem icon={<Braces size={15} />} label="Patches" active={state.activeView === "diff"} onClick={() => setView("diff")} />
+          <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
         </NavSection>
 
         <NavSection label="Run">
@@ -322,27 +353,22 @@ function App() {
         </NavSection>
 
         <NavSection label="Publish">
-          <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
-          <NavItem icon={<FileText size={15} />} label="Paper" active={state.activeView === "latex"} onClick={() => setView("latex")} />
           <NavItem icon={<GitBranch size={15} />} label="Git" active={state.activeView === "git"} onClick={() => setView("git")} />
           <NavItem icon={<Globe2 size={15} />} label="Deploy" active={state.activeView === "deploy"} onClick={() => setView("deploy")} />
+          <NavItem icon={<FileText size={15} />} label="Paper" active={state.activeView === "latex"} onClick={() => setView("latex")} />
         </NavSection>
 
         <NavSection label="System">
-          <NavItem icon={<Download size={15} />} label="Artifacts" active={state.activeView === "artifacts"} onClick={() => setView("artifacts")} />
-          <NavItem icon={<Cloud size={15} />} label="Sync" active={state.activeView === "sync"} onClick={() => setView("sync")} />
-          <NavItem icon={<ShieldCheck size={15} />} label="Security" active={state.activeView === "security"} onClick={() => setView("security")} />
-          <NavItem icon={<Database size={15} />} label="Database" active={state.activeView === "database"} onClick={() => setView("database")} />
-          <NavItem icon={<Zap size={15} />} label="Performance" active={state.activeView === "performance"} onClick={() => setView("performance")} />
-          <NavItem icon={<Zap size={15} />} label="Activity" active={state.activeView === "activity"} onClick={() => setView("activity")} />
+          <NavItem icon={<Settings size={15} />} label="Settings" active={state.activeView === "settings"} onClick={() => setView("settings")} />
         </NavSection>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div className="top-meta">
-            <span>{state.projects[0]?.name ?? "Workspace"}</span>
-            <span><GitBranch size={14} />{state.projects[0]?.branch ?? "main"}</span>
+            <span>{selectedProject(state).name}</span>
+            <span><GitBranch size={14} />{selectedProject(state).branch}</span>
+            <span><MessageSquare size={14} />{selectedThreadLabel(state)}</span>
             <span><Bot size={14} />{state.agentRuntime.state}</span>
             <span><Zap size={14} />{pendingMutationCount(state.pendingMutations)} queued</span>
           </div>
@@ -380,11 +406,53 @@ function ViewSwitch({ view, formula }: { view: ViewId; formula?: FormulaCard }) 
   if (view === "git") return <GitView />;
   if (view === "sync") return <SyncView />;
   if (view === "logs") return <LogsView />;
+  if (view === "settings") return <SettingsView />;
   return <NotebookView />;
+}
+
+function ProjectSwitcher({ state }: { state: ClientState }) {
+  const project = selectedProject(state);
+  return (
+    <section className="project-switcher">
+      <label htmlFor="project-select">Project</label>
+      <div className="select-wrap">
+        <FolderKanban size={15} />
+        <select
+          id="project-select"
+          value={project.id}
+          onChange={(event) => updateState((draft) => ({ ...draft, selectedProjectId: event.target.value, activeView: "home" }))}
+        >
+          {state.projects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+      </div>
+      <small>{project.runtime} / {project.agentRuntime}</small>
+    </section>
+  );
+}
+
+function ThreadList({ state }: { state: ClientState }) {
+  const threads = threadOptions(state);
+  return (
+    <NavSection label="Threads">
+      {threads.map((thread) => (
+        <button
+          key={thread.id}
+          className={`thread-row ${state.selectedThreadId === thread.id ? "active" : ""}`}
+          onClick={() => updateState((draft) => ({ ...draft, selectedThreadId: thread.id, activeView: thread.view }))}
+        >
+          <MessageSquare size={14} />
+          <span>{thread.label}</span>
+          <small data-status={thread.status}>{thread.status}</small>
+        </button>
+      ))}
+    </NavSection>
+  );
 }
 
 function HomeView({ formula }: { formula?: FormulaCard }) {
   const state = useAppState();
+  const project = selectedProject(state);
+  const threadLabel = selectedThreadLabel(state);
   const latestSession = state.agentSessions[0];
   const latestVerification = formula?.verificationHistory[0];
   const failedChecks = latestVerification?.checks.filter((check) => check.status === "failed").length ?? 0;
@@ -394,8 +462,8 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
     <section className="view home-view">
       <div className="home-hero">
         <div>
-          <h1>{formula?.title ?? "Research workspace"}</h1>
-          <p>{formula?.equation ?? "Local-first model, robotics, math, and code verification."}</p>
+          <h1>{project.name}</h1>
+          <p>{threadLabel} / {formula?.title ?? "Research workspace"} / {formula?.equation ?? "Local-first model, robotics, math, and code verification."}</p>
         </div>
         <div className="home-actions">
           <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={15} />Verify</button>
@@ -480,9 +548,23 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
 }
 
 function InspectorPanel({ state }: { state: ClientState }) {
-  const latestSession = state.agentSessions[0];
+  const latestSession = state.agentSessions.find((session) => session.id === state.selectedThreadId) ?? state.agentSessions[0];
+  const project = selectedProject(state);
+  const fileName = state.editorFile?.path ?? state.selectedFilePath;
   return (
     <aside className="inspector-panel">
+      <section className="inspector-card">
+        <div className="surface-heading">
+          <strong>Context</strong>
+          <small>{project.branch}</small>
+        </div>
+        <div className="status-stack">
+          <span>{project.name}</span>
+          <small>{selectedThreadLabel(state)}</small>
+        </div>
+        {fileName ? <div className="data-row"><span>{fileName}</span><small>file</small></div> : null}
+      </section>
+
       <section className="inspector-card">
         <div className="surface-heading">
           <strong>Pi mono</strong>
@@ -525,6 +607,102 @@ function InspectorPanel({ state }: { state: ClientState }) {
         ))}
       </section>
     </aside>
+  );
+}
+
+function SettingsView() {
+  const state = useAppState();
+  const project = selectedProject(state);
+  return (
+    <section className="view settings-view">
+      <ViewHeader title="Settings" detail={`${project.name} / ${project.branch}`} />
+      <div className="settings-grid">
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>Appearance</strong>
+            <small>{state.theme}</small>
+          </div>
+          <div className="segmented">
+            <button className={state.theme === "light" ? "active" : ""} onClick={() => setTheme("light")}><Sun size={14} />Light</button>
+            <button className={state.theme === "dark" ? "active" : ""} onClick={() => setTheme("dark")}><Moon size={14} />Dark</button>
+            <button className={state.theme === "system" ? "active" : ""} onClick={() => setTheme("system")}><Monitor size={14} />System</button>
+          </div>
+        </section>
+
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>Pi mono / Codex</strong>
+            <small>{state.agentRuntime.state}</small>
+          </div>
+          <input
+            className="git-message"
+            value={state.codexCommandDraft}
+            onChange={(event) => updateState((draft) => ({ ...draft, codexCommandDraft: event.target.value }))}
+            aria-label="Codex command"
+            placeholder="codex --model gpt-5"
+          />
+          <div className="settings-actions">
+            <button className="commit-button" onClick={() => void saveAgentRuntimeConfig()}><Save size={14} />Save command</button>
+            <button onClick={() => updateState((draft) => ({ ...draft, codexCommandDraft: "" }))}><KeyRound size={14} />Clear draft</button>
+          </div>
+          <small>{state.agentRuntime.credentialHint}</small>
+        </section>
+
+        <section className="surface-panel">
+          <div className="surface-heading">
+            <strong>API token</strong>
+            <small>{state.credentialStatus.available ? state.credentialStatus.backend : "session"}</small>
+          </div>
+          <input
+            className="git-message"
+            value={state.authToken}
+            onChange={(event) => updateState((draft) => ({ ...draft, authToken: event.target.value }))}
+            aria-label="API token"
+            placeholder="Remote API token"
+            type="password"
+          />
+          <div className="settings-actions">
+            <button onClick={() => void hydrate()}><ShieldCheck size={14} />Reconnect</button>
+            <button onClick={() => void saveApiToken()}><ShieldCheck size={14} />Store</button>
+            <button onClick={() => void clearStoredApiToken()}><ShieldCheck size={14} />Clear</button>
+          </div>
+          <small>{state.credentialStatus.message}</small>
+        </section>
+
+        <section className="surface-panel settings-wide">
+          <div className="surface-heading">
+            <strong>System</strong>
+            <small>{state.persistence.engine}</small>
+          </div>
+          <div className="settings-link-grid">
+            <button onClick={() => setView("artifacts")}><Download size={14} />Artifacts</button>
+            <button onClick={() => setView("sync")}><Cloud size={14} />Sync</button>
+            <button onClick={() => setView("security")}><ShieldCheck size={14} />Security</button>
+            <button onClick={() => setView("database")}><Database size={14} />Database</button>
+            <button onClick={() => setView("performance")}><Zap size={14} />Performance</button>
+            <button onClick={() => setView("activity")}><Zap size={14} />Activity</button>
+          </div>
+        </section>
+
+        <section className="surface-panel settings-wide">
+          <div className="surface-heading">
+            <strong>Cloud credentials</strong>
+            <small>{state.cloudProviders.length} providers</small>
+          </div>
+          <div className="cloud-settings-list">
+            {state.cloudProviders.map((provider) => (
+              <div className="provider-settings-row" key={provider.id}>
+                <div>
+                  <strong>{provider.name}</strong>
+                  <small data-status={provider.state}>{provider.state}</small>
+                </div>
+                <CloudCredentialControls provider={provider} />
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -1374,6 +1552,35 @@ function setView(activeView: ViewId) {
   updateState((draft) => ({ ...draft, activeView }));
 }
 
+function setTheme(theme: ThemeMode) {
+  updateState((draft) => ({ ...draft, theme }));
+}
+
+function applyTheme(theme: ThemeMode) {
+  const systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = theme === "system" ? (systemDark ? "dark" : "light") : theme;
+}
+
+function selectedProject(state: ClientState): ProjectSummary {
+  return state.projects.find((project) => project.id === state.selectedProjectId) ?? state.projects[0] ?? initialState.projects[0]!;
+}
+
+function threadOptions(state: ClientState) {
+  return [
+    { id: "general", label: "General", status: "ready", view: "home" as ViewId },
+    ...state.agentSessions.slice(0, 7).map((session) => ({
+      id: session.id,
+      label: session.title,
+      status: session.state,
+      view: "diff" as ViewId
+    }))
+  ];
+}
+
+function selectedThreadLabel(state: ClientState): string {
+  return threadOptions(state).find((thread) => thread.id === state.selectedThreadId)?.label ?? "General";
+}
+
 function toggleCommand(commandOpen: boolean) {
   updateState((draft) => ({ ...draft, commandOpen }));
 }
@@ -1415,11 +1622,13 @@ async function hydrate() {
       experiments: snapshot.experiments,
       patches: snapshot.patches,
       agentRuntime: snapshot.agentRuntime,
+      codexCommandDraft: draft.codexCommandDraft || (snapshot.agentRuntime.codexCommand ?? ""),
       agentHandoffs: snapshot.agentHandoffs,
       agentSessions: snapshot.agentSessions,
       documents: snapshot.documents.map(normalizeDocument),
       syncRuns: snapshot.syncRuns,
       activityEvents: snapshot.activityEvents,
+      selectedProjectId: snapshot.projects.some((project) => project.id === draft.selectedProjectId) ? draft.selectedProjectId : snapshot.projects[0]?.id ?? draft.selectedProjectId,
       selectedFormulaId: serverFormulas.some((formula) => formula.id === draft.selectedFormulaId) || draft.formulas.some((formula) => formula.id === draft.selectedFormulaId && formula.id.startsWith("local-"))
         ? draft.selectedFormulaId
         : serverFormulas[0]?.id ?? draft.selectedFormulaId
@@ -1622,6 +1831,26 @@ async function runAgentWorkflow() {
     await hydrate();
   } catch {
     appendLog("Pi mono workflow failed because the local server is unavailable");
+  }
+}
+
+async function saveAgentRuntimeConfig() {
+  const command = store.getSnapshot().codexCommandDraft.trim();
+  appendLog(command ? "Saving Codex command for Pi mono" : "Clearing Codex command for Pi mono");
+  try {
+    const runtime = await api<AgentRuntimeConfig>("/api/agents/runtime", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        codexCommand: command,
+        state: command ? "configured" : "not-configured",
+        credentialHint: command ? "Codex command configured through PolyLab settings." : initialState.agentRuntime.credentialHint
+      })
+    });
+    updateState((draft) => ({ ...draft, agentRuntime: runtime, codexCommandDraft: runtime.codexCommand ?? "" }));
+    await hydrate();
+  } catch {
+    appendLog("Codex runtime configuration failed because the local server is unavailable");
   }
 }
 

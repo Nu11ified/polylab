@@ -978,6 +978,24 @@ small {
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
 }
 
+:root[data-theme="dark"] {
+  --bg: #0f1217;
+  --panel: #171b22;
+  --panel-soft: #11161d;
+  --line: #2a3340;
+  --line-soft: #222a35;
+  --text: #e6eaf0;
+  --muted: #a3adbb;
+  --muted-2: #788391;
+  --accent: #4f8cff;
+  --accent-strong: #8bb4ff;
+  --success: #59c287;
+  --warn: #e2a94b;
+  --danger: #ef6b61;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -1008,7 +1026,7 @@ button {
   padding: 0 20px;
   border: 0;
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
 }
 
 .sidebar {
@@ -1017,7 +1035,7 @@ button {
   gap: 12px;
   padding: 14px 12px;
   border-right: 1px solid var(--line);
-  background: #f2f4f7;
+  background: color-mix(in srgb, var(--bg) 78%, var(--panel) 22%);
 }
 
 .brand {
@@ -1043,6 +1061,42 @@ button {
   box-shadow: var(--shadow);
 }
 
+.project-switcher {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.project-switcher label {
+  color: var(--muted-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.select-wrap {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.select-wrap select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  outline: 0;
+}
+
 .nav-section {
   display: grid;
   gap: 3px;
@@ -1063,17 +1117,51 @@ button {
   gap: 9px;
   padding: 0 9px;
   border-radius: 6px;
-  color: #46515f;
+  color: var(--muted);
 }
 
 .nav-item:hover {
-  background: #e8edf4;
+  background: color-mix(in srgb, var(--panel) 58%, var(--accent) 8%);
 }
 
 .nav-item.active {
   background: var(--panel);
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+}
+
+.thread-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.thread-row:hover {
+  background: color-mix(in srgb, var(--panel) 58%, var(--accent) 8%);
+}
+
+.thread-row.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line), var(--shadow);
+}
+
+.thread-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace {
@@ -1100,6 +1188,8 @@ button {
 .home-actions button,
 .mini-actions button,
 .surface-heading button,
+.settings-actions button,
+.settings-link-grid button,
 .git-actions button,
 .commit-button,
 .agent-card button,
@@ -1113,7 +1203,7 @@ button {
   padding: 0 10px;
   border: 1px solid var(--line);
   background: var(--panel);
-  color: #344054;
+  color: var(--text);
   box-shadow: var(--shadow);
 }
 
@@ -1134,7 +1224,7 @@ button {
   gap: 12px;
   padding: 14px;
   border-left: 1px solid var(--line);
-  background: #f2f4f7;
+  background: color-mix(in srgb, var(--bg) 78%, var(--panel) 22%);
 }
 
 .inspector-card,
@@ -1204,7 +1294,7 @@ button {
 .data-row:hover,
 .file-row:hover,
 .artifact-row:hover {
-  background: #f1f5f9;
+  background: color-mix(in srgb, var(--panel) 58%, var(--accent) 8%);
 }
 
 .data-row span,
@@ -1281,8 +1371,86 @@ button {
 }
 
 .workflow-tile:hover {
-  border-color: #b8c7dc;
-  background: #fbfdff;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line) 55%);
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent) 5%);
+}
+
+.settings-view {
+  overflow: auto;
+}
+
+.settings-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.settings-wide {
+  grid-column: span 3;
+}
+
+.segmented,
+.settings-actions,
+.settings-link-grid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.segmented {
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.segmented button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.settings-link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.cloud-settings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.provider-settings-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(0, 1.3fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.provider-settings-row > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .home-columns {
@@ -1346,6 +1514,53 @@ button {
   overflow: hidden;
 }
 
+:root[data-theme="dark"] .formula-row,
+:root[data-theme="dark"] .new-formula,
+:root[data-theme="dark"] .file-row,
+:root[data-theme="dark"] .artifact-row,
+:root[data-theme="dark"] .wide-row,
+:root[data-theme="dark"] .task,
+:root[data-theme="dark"] .log,
+:root[data-theme="dark"] .editor-tabs,
+:root[data-theme="dark"] .patch-card,
+:root[data-theme="dark"] .patch-hunk,
+:root[data-theme="dark"] .benchmark-card,
+:root[data-theme="dark"] .agent-card,
+:root[data-theme="dark"] .permission-card,
+:root[data-theme="dark"] .doc-card,
+:root[data-theme="dark"] .palette {
+  border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .formula-row.active,
+:root[data-theme="dark"] .file-row.active,
+:root[data-theme="dark"] .tab.active,
+:root[data-theme="dark"] .patch-meta,
+:root[data-theme="dark"] .check-card,
+:root[data-theme="dark"] .run-row,
+:root[data-theme="dark"] .hunk-actions,
+:root[data-theme="dark"] .graph-node,
+:root[data-theme="dark"] pre {
+  border-color: var(--line);
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .git-message,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  border-color: var(--line);
+  background: var(--panel-soft);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .palette-backdrop {
+  background: rgba(0, 0, 0, 0.48);
+}
+
 @media (max-width: 1180px) {
   .app-shell {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -1367,7 +1582,16 @@ button {
 
   .home-grid,
   .home-columns,
-  .home-hero {
+  .home-hero,
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-wide {
+    grid-column: auto;
+  }
+
+  .provider-settings-row {
     grid-template-columns: 1fr;
   }
 }
