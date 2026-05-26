@@ -2549,9 +2549,36 @@ function defaultAgentRuntime(): AgentRuntimeConfig {
 }
 
 async function runAgentCommand(commandLine: string, cwd: string, extraEnv: Record<string, string>) {
+  if (commandLine === "builtin:codex-cli") return runBuiltinCodexCli(cwd, extraEnv);
   const [command, ...args] = parseCommand(commandLine);
   if (!command) return { stdout: "", stderr: "Codex command is empty.", exitCode: 126 };
   const proc = Bun.spawn([command, ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: { ...process.env, ...extraEnv, NO_COLOR: "1" }
+  });
+  const timeout = setTimeout(() => proc.kill(), 120_000);
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited
+  ]);
+  clearTimeout(timeout);
+  return { stdout: truncateAgentOutput(stdout), stderr: truncateAgentOutput(stderr), exitCode };
+}
+
+async function runBuiltinCodexCli(cwd: string, extraEnv: Record<string, string>) {
+  const handoffPath = extraEnv.POLYLAB_AGENT_HANDOFF_PATH;
+  const request = handoffPath ? await readFile(handoffPath, "utf8").catch(() => "") : "";
+  const prompt = [
+    "Continue this PolyLab algorithm bench handoff.",
+    "Read the JSON request below, inspect the repository, and make the requested implementation or verification changes.",
+    "When finished, summarize the files changed, commands run, and remaining risks.",
+    "",
+    request
+  ].join("\n");
+  const proc = Bun.spawn(["codex", "exec", "--skip-git-repo-check", prompt], {
     cwd,
     stdout: "pipe",
     stderr: "pipe",

@@ -37,12 +37,18 @@ interface DesktopCredentialBridge {
   clearCredential?: (name: string) => Promise<{ ok: boolean; reason?: string }>;
 }
 
+interface DesktopCodexBridge {
+  status: () => Promise<{ available: boolean; version?: string; reason?: string }>;
+  login: () => Promise<{ ok: boolean; reason?: string }>;
+}
+
 declare global {
   interface Window {
     polylabDesktop?: {
       platform: string;
       versions: Record<string, string>;
       credentials?: DesktopCredentialBridge;
+      codex?: DesktopCodexBridge;
     };
   }
 }
@@ -54,6 +60,7 @@ interface ClientState {
   selectedThreadId: string;
   activePhase: BenchPhase;
   contextTab: ContextTab;
+  contextCollapsed: boolean;
   theme: ThemeMode;
   codexCommandDraft: string;
   selectedFormulaId: string;
@@ -105,6 +112,7 @@ const initialState: ClientState = {
   selectedThreadId: "general",
   activePhase: "model",
   contextTab: "files",
+  contextCollapsed: true,
   theme: "system",
   codexCommandDraft: "",
   selectedFormulaId: "softmax-jacobian",
@@ -199,6 +207,7 @@ function readCachedState(): ClientState {
       selectedThreadId: parsed.selectedThreadId ?? "general",
       activePhase: parsed.activePhase ?? "model",
       contextTab: parsed.contextTab ?? "files",
+      contextCollapsed: parsed.contextCollapsed ?? true,
       theme: parsed.theme ?? "system",
       codexCommandDraft: parsed.codexCommandDraft ?? parsed.agentRuntime.codexCommand ?? "",
       formulas: parsed.formulas.map(normalizeFormula),
@@ -334,7 +343,7 @@ function App() {
   const project = selectedProject(state);
 
   return (
-    <div className="app-shell lab-shell">
+    <div className={`app-shell lab-shell ${state.contextCollapsed ? "context-collapsed" : ""}`}>
       <aside className="lab-sidebar">
         <div className="lab-brand-row">
           <button className="brand lab-brand" onClick={() => setView("home")}><Sigma size={18} />PolyLab</button>
@@ -362,6 +371,7 @@ function App() {
             <button onClick={() => void openWorkspaceRoot()}><FolderOpen size={14} />Editor</button>
             <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
             <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run agent</button>
+            <button onClick={() => toggleContextPanel()}><Code2 size={14} />Context</button>
           </div>
         </header>
         {state.activeView === "settings" ? <SettingsView /> : <HomeView formula={activeFormula} />}
@@ -775,6 +785,7 @@ function CodeContextPanel({ state }: { state: ClientState }) {
     <aside className="inspector-panel lab-code-panel context-panel">
       <div className="context-header">
         <strong>Context</strong>
+        <button className="context-collapse" onClick={() => toggleContextPanel()}>{state.contextCollapsed ? "Open" : "Hide"}</button>
         <div className="context-tabs">
           <button className={state.contextTab === "files" ? "active" : ""} onClick={() => setContextTab("files")}>Files</button>
           <button className={state.contextTab === "checks" ? "active" : ""} onClick={() => setContextTab("checks")}>Checks</button>
@@ -901,6 +912,10 @@ function SettingsView() {
           <div className="surface-heading">
             <strong>Pi mono / Codex</strong>
             <small>{state.agentRuntime.state}</small>
+          </div>
+          <div className="codex-setup-grid">
+            <button onClick={() => void configureBuiltinCodexCli()}><Bot size={14} />Use Codex CLI</button>
+            <button onClick={() => void startCodexLogin()}><KeyRound size={14} />Sign in</button>
           </div>
           <input
             className="git-message"
@@ -1825,7 +1840,11 @@ function setPhase(activePhase: BenchPhase) {
 }
 
 function setContextTab(contextTab: ContextTab) {
-  updateState((draft) => ({ ...draft, contextTab }));
+  updateState((draft) => ({ ...draft, contextTab, contextCollapsed: false }));
+}
+
+function toggleContextPanel() {
+  updateState((draft) => ({ ...draft, contextCollapsed: !draft.contextCollapsed }));
 }
 
 function isViewIn(view: ViewId, views: ViewId[]) {
@@ -2126,8 +2145,8 @@ async function runAgentWorkflow() {
   }
 }
 
-async function saveAgentRuntimeConfig() {
-  const command = store.getSnapshot().codexCommandDraft.trim();
+async function saveAgentRuntimeConfig(commandOverride?: string) {
+  const command = (commandOverride ?? store.getSnapshot().codexCommandDraft).trim();
   appendLog(command ? "Saving Codex command for Pi mono" : "Clearing Codex command for Pi mono");
   try {
     const runtime = await api<AgentRuntimeConfig>("/api/agents/runtime", {
@@ -2144,6 +2163,26 @@ async function saveAgentRuntimeConfig() {
   } catch {
     appendLog("Codex runtime configuration failed because the local server is unavailable");
   }
+}
+
+async function configureBuiltinCodexCli() {
+  updateState((draft) => ({ ...draft, codexCommandDraft: "builtin:codex-cli" }));
+  await saveAgentRuntimeConfig("builtin:codex-cli");
+}
+
+async function startCodexLogin() {
+  const bridge = window.polylabDesktop?.codex;
+  if (!bridge) {
+    appendLog("Codex login helper is unavailable outside the desktop shell");
+    return;
+  }
+  const status = await bridge.status();
+  if (!status.available) {
+    appendLog("Codex CLI is not installed. Install it with npm i -g @openai/codex, then run Sign in again.");
+    return;
+  }
+  const result = await bridge.login();
+  appendLog(result.ok ? "Started Codex sign-in flow" : `Codex sign-in failed: ${result.reason ?? "unknown error"}`);
 }
 
 async function exportAgentReplay(sessionId: string) {

@@ -2301,18 +2301,72 @@ button {
   background: var(--panel);
 }
 
+.context-collapsed {
+  grid-template-columns: 260px minmax(0, 1fr) 48px;
+}
+
+.context-collapsed .context-panel {
+  padding: 8px 6px;
+  overflow: hidden;
+}
+
+.context-collapsed .context-header {
+  align-items: center;
+}
+
+.context-collapsed .context-header > strong,
+.context-collapsed .context-tabs,
+.context-collapsed .context-panel .inspector-card {
+  display: none;
+}
+
+.context-collapse {
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-soft);
+  color: var(--text);
+  cursor: pointer;
+}
+
 .context-header {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
 .context-tabs {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 3px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.codex-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.codex-setup-grid button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.codex-setup-grid button:hover {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line) 64%);
   background: var(--panel-soft);
 }
 

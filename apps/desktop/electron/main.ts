@@ -79,6 +79,28 @@ function registerCredentialIpc() {
   ipcMain.handle("polylab:credential-save-named", async (_event, name: unknown, value: unknown) => saveCredential(name, value));
   ipcMain.handle("polylab:credential-load-named", async (_event, name: unknown) => loadCredential(name));
   ipcMain.handle("polylab:credential-clear-named", async (_event, name: unknown) => clearCredential(name));
+
+  ipcMain.handle("polylab:codex-status", async () => {
+    return new Promise<{ available: boolean; version?: string; reason?: string }>((resolve) => {
+      const proc = spawn("codex", ["--version"], { stdio: ["ignore", "pipe", "pipe"] });
+      let stdout = "";
+      let stderr = "";
+      proc.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      proc.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      proc.on("error", () => resolve({ available: false, reason: "not-installed" }));
+      proc.on("close", (code) => resolve(code === 0 ? { available: true, version: stdout.trim() } : { available: false, reason: stderr.trim() || `exit-${code}` }));
+    });
+  });
+
+  ipcMain.handle("polylab:codex-login", async () => {
+    try {
+      const proc = spawn("codex", ["--login"], { detached: true, stdio: "ignore" });
+      proc.unref();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : "spawn-failed" };
+    }
+  });
 }
 
 async function createWindow() {

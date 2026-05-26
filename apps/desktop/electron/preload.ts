@@ -11,5 +11,9 @@ contextBridge.exposeInMainWorld("polylabDesktop", {
     saveCredential: (name: string, value: string) => ipcRenderer.invoke("polylab:credential-save-named", name, value),
     loadCredential: (name: string) => ipcRenderer.invoke("polylab:credential-load-named", name),
     clearCredential: (name: string) => ipcRenderer.invoke("polylab:credential-clear-named", name)
+  },
+  codex: {
+    status: () => ipcRenderer.invoke("polylab:codex-status"),
+    login: () => ipcRenderer.invoke("polylab:codex-login")
   }
 });
