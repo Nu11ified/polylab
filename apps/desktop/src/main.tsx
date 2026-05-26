@@ -8,7 +8,7 @@ import "./styles.css";
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react"));
 
-type ViewId = "home" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs" | "settings";
+type ViewId = "home" | "build" | "run" | "publish" | "code" | "diff" | "math" | "latex" | "verify" | "notebook" | "experiment" | "benchmark" | "cloud" | "deploy" | "performance" | "database" | "security" | "artifacts" | "activity" | "git" | "sync" | "logs" | "settings";
 type ThemeMode = "light" | "dark" | "system";
 
 interface CommandItem {
@@ -341,32 +341,10 @@ function App() {
         <ThreadList state={state} />
 
         <NavSection label="Workspace">
-          <NavItem icon={<Search size={15} />} label="Overview" active={state.activeView === "home"} onClick={() => setView("home")} />
-          <NavItem icon={<Sigma size={15} />} label="Math spec" active={state.activeView === "math"} onClick={() => setView("math")} />
-          <NavItem icon={<CheckCircle2 size={15} />} label="Verify" active={state.activeView === "verify"} onClick={() => setView("verify")} />
-          <NavItem icon={<Code2 size={15} />} label="Implementation" active={state.activeView === "code"} onClick={() => setView("code")} />
-          <NavItem icon={<Bot size={15} />} label="Agent thread" active={state.activeView === "diff" && Boolean(state.agentSessions[0])} onClick={() => setView("diff")} />
-        </NavSection>
-
-        <NavSection label="Build">
-          <NavItem icon={<Braces size={15} />} label="Patches" active={state.activeView === "diff"} onClick={() => setView("diff")} />
-          <NavItem icon={<FileText size={15} />} label="Notebook" active={state.activeView === "notebook"} onClick={() => setView("notebook")} />
-        </NavSection>
-
-        <NavSection label="Run">
-          <NavItem icon={<Play size={15} />} label="Experiments" active={state.activeView === "experiment"} onClick={() => setView("experiment")} />
-          <NavItem icon={<Gauge size={15} />} label="Benchmarks" active={state.activeView === "benchmark"} onClick={() => setView("benchmark")} />
-          <NavItem icon={<Cloud size={15} />} label="Cloud" active={state.activeView === "cloud"} onClick={() => setView("cloud")} />
-          <NavItem icon={<Terminal size={15} />} label="Logs" active={state.activeView === "logs"} onClick={() => setView("logs")} />
-        </NavSection>
-
-        <NavSection label="Publish">
-          <NavItem icon={<GitBranch size={15} />} label="Git" active={state.activeView === "git"} onClick={() => setView("git")} />
-          <NavItem icon={<Globe2 size={15} />} label="Deploy" active={state.activeView === "deploy"} onClick={() => setView("deploy")} />
-          <NavItem icon={<FileText size={15} />} label="Paper" active={state.activeView === "latex"} onClick={() => setView("latex")} />
-        </NavSection>
-
-        <NavSection label="System">
+          <NavItem icon={<Search size={15} />} label="Workbench" active={isViewIn(state.activeView, ["home", "math", "verify", "code", "diff"])} onClick={() => setView("home")} />
+          <NavItem icon={<Braces size={15} />} label="Build" active={isViewIn(state.activeView, ["build", "notebook"])} onClick={() => setView("build")} />
+          <NavItem icon={<Play size={15} />} label="Run" active={isViewIn(state.activeView, ["run", "experiment", "benchmark", "cloud", "logs"])} onClick={() => setView("run")} />
+          <NavItem icon={<GitBranch size={15} />} label="Publish" active={isViewIn(state.activeView, ["publish", "git", "deploy", "latex"])} onClick={() => setView("publish")} />
           <NavItem icon={<Settings size={15} />} label="Settings" active={state.activeView === "settings"} onClick={() => setView("settings")} />
         </NavSection>
       </aside>
@@ -398,6 +376,9 @@ function App() {
 
 function ViewSwitch({ view, formula }: { view: ViewId; formula?: FormulaCard }) {
   if (view === "home") return <HomeView formula={formula} />;
+  if (view === "build") return <BuildWorkspace formula={formula} />;
+  if (view === "run") return <RunWorkspace />;
+  if (view === "publish") return <PublishWorkspace />;
   if (view === "code") return <CodeView />;
   if (view === "diff") return <DiffView formula={formula} />;
   if (view === "math") return <MathView formula={formula} />;
@@ -468,70 +449,39 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
   const warningChecks = latestVerification?.checks.filter((check) => check.status === "warning").length ?? 0;
   const activeRun = state.experiments[0] ?? state.executions[0];
   return (
-    <section className="view home-view">
-      <div className="home-hero">
-        <div>
-          <h1>{project.name}</h1>
-          <p>{threadLabel} / {formula?.title ?? "Research workspace"} / {formula?.equation ?? "Local-first model, robotics, math, and code verification."}</p>
-        </div>
-        <div className="home-actions">
-          <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={15} />Verify</button>
-          <button onClick={() => void runAgentWorkflow()}><Bot size={15} />Agent run</button>
-          <button onClick={() => setView("code")}><Code2 size={15} />Open code</button>
-        </div>
-      </div>
-
-      <div className="home-grid">
-        <button className="workflow-tile" onClick={() => setView("verify")}>
-          <CheckCircle2 size={18} />
-          <strong>Verification</strong>
-          <span>{latestVerification ? `${latestVerification.status}: ${failedChecks} failed, ${warningChecks} warnings` : "No run yet"}</span>
-        </button>
-        <button className="workflow-tile" onClick={() => setView("diff")}>
-          <Braces size={18} />
-          <strong>Patches</strong>
-          <span>{state.patches[0]?.status ?? "No generated patch"}</span>
-        </button>
-        <button className="workflow-tile" onClick={() => setView("experiment")}>
-          <Play size={18} />
-          <strong>Execution</strong>
-          <span>{activeRun ? `${activeRun.state}: ${activeRun.command}` : "No active run"}</span>
-        </button>
-        <button className="workflow-tile" onClick={() => setView("cloud")}>
-          <Cloud size={18} />
-          <strong>Cloud</strong>
-          <span>{state.cloudJobs.length} jobs / {state.cloudProviders.filter((provider) => provider.state !== "not-configured").length} providers</span>
-        </button>
-      </div>
-
-      <div className="home-columns">
-        <section className="surface-panel">
+    <section className="view workbench-view">
+      <ViewHeader title={project.name} detail={`${threadLabel} / ${project.workspaceRoot ?? "local workspace"}`} />
+      <div className="workbench-grid">
+        <section className="workbench-primary">
           <div className="surface-heading">
-            <strong>Formulas</strong>
-            <button onClick={() => void createFormula()}><Plus size={14} />New</button>
+            <strong>{formula?.title ?? "Math spec"}</strong>
+            <div className="compact-actions">
+              <button onClick={() => setView("math")}><Sigma size={14} />Spec</button>
+              <button onClick={() => void verifyActiveFormula()}><CheckCircle2 size={14} />Verify</button>
+              <button onClick={() => void generatePatch()}><Braces size={14} />Patch</button>
+            </div>
           </div>
-          {state.formulas.slice(0, 6).map((item) => (
-            <button
-              key={item.id}
-              className="data-row"
-              onClick={() => updateState((draft) => ({ ...draft, selectedFormulaId: item.id, activeView: "math" }))}
-            >
-              <span>{item.title}</span>
-              <small data-status={item.status}>{item.status}</small>
-            </button>
-          ))}
+          <pre className="equation-block">{formula?.equation ?? "Select or create a formula for this project."}</pre>
+          <div className="workbench-metrics">
+            <Metric label="Verification" value={latestVerification ? `${latestVerification.status} / ${failedChecks} failed / ${warningChecks} warnings` : "not run"} />
+            <Metric label="Implementation" value={state.editorFile?.path ?? `${state.workspaceFiles.filter((file) => file.kind === "file").length} indexed files`} />
+            <Metric label="Run" value={activeRun ? `${activeRun.state}: ${activeRun.command}` : "idle"} />
+          </div>
         </section>
 
-        <section className="surface-panel">
+        <section className="workbench-chat">
           <div className="surface-heading">
-            <strong>Agent</strong>
-            <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
+            <strong>Agent thread</strong>
+            <div className="compact-actions">
+              <button onClick={() => void runAgentWorkflow()}><Bot size={14} />Run</button>
+              {latestSession ? <button onClick={() => void dispatchAgentHandoff(latestSession.id)}><Command size={14} />Codex</button> : null}
+            </div>
           </div>
           <div className="status-stack">
-            <span>{latestSession?.state ?? "ready"}</span>
-            <small>{latestSession ? `${latestSession.attempts}/${latestSession.maxAttempts} attempts` : state.agentRuntime.credentialHint}</small>
+            <span>{latestSession?.title ?? "No active agent session"}</span>
+            <small>{latestSession ? `${latestSession.state} / ${latestSession.attempts}/${latestSession.maxAttempts} attempts` : state.agentRuntime.credentialHint}</small>
           </div>
-          {latestSession?.plan.slice(0, 5).map((step) => (
+          {latestSession?.plan.slice(0, 7).map((step) => (
             <div className="data-row" key={step.id}>
               <span>{step.title}</span>
               <small data-status={step.state}>{step.state}</small>
@@ -539,20 +489,98 @@ function HomeView({ formula }: { formula?: FormulaCard }) {
           ))}
         </section>
 
-        <section className="surface-panel">
-          <div className="surface-heading">
-            <strong>Recent activity</strong>
-            <button onClick={() => setView("activity")}><Zap size={14} />Open</button>
-          </div>
-          {(state.activityEvents.length ? state.activityEvents : state.logs).slice(0, 6).map((item) => (
-            <div className="data-row" key={item.id}>
-              <span>{"message" in item ? item.message : item.title}</span>
-              <small>{new Date(item.createdAt).toLocaleTimeString()}</small>
-            </div>
-          ))}
+        <section className="workbench-side">
+          <CategoryCard icon={<Braces size={15} />} title="Build" detail={`${state.patches.length} patches / ${state.documents.length} docs`} onClick={() => setView("build")} />
+          <CategoryCard icon={<Play size={15} />} title="Run" detail={`${state.experiments.length} experiments / ${state.benchmarks.length} benchmarks`} onClick={() => setView("run")} />
+          <CategoryCard icon={<GitBranch size={15} />} title="Publish" detail={`${state.deploymentPlans.length} deploy plans / ${state.syncRuns.length} sync runs`} onClick={() => setView("publish")} />
         </section>
       </div>
     </section>
+  );
+}
+
+function BuildWorkspace({ formula }: { formula?: FormulaCard }) {
+  const state = useAppState();
+  const latestPatch = state.patches[0];
+  const latestVerification = formula?.verificationHistory[0];
+  return (
+    <section className="view category-view">
+      <ViewHeader title="Build" detail="Math spec, generated implementation, patch review, and local documentation." />
+      <div className="category-grid">
+        <CategoryAction icon={<Sigma size={16} />} title="Math spec" detail={formula?.title ?? "No formula selected"} meta={formula?.status ?? "queued"} onClick={() => setView("math")} />
+        <CategoryAction icon={<Code2 size={16} />} title="Implementation" detail={state.editorFile?.path ?? "Select a source file on the right"} meta={`${state.workspaceFiles.filter((file) => file.kind === "file").length} files`} onClick={() => setView("code")} />
+        <CategoryAction icon={<Braces size={16} />} title="Patch review" detail={latestPatch?.title ?? "Generate a verified patch"} meta={latestPatch?.status ?? "idle"} onClick={() => setView("diff")} />
+        <CategoryAction icon={<CheckCircle2 size={16} />} title="Verification" detail={latestVerification ? latestVerification.id : "Run checks before merging"} meta={latestVerification?.status ?? "not run"} onClick={() => setView("verify")} />
+        <CategoryAction icon={<FileText size={16} />} title="Notebook" detail={state.documents[0]?.title ?? "Research notebook and executable cells"} meta={`${state.documents.length} docs`} onClick={() => setView("notebook")} />
+        <CategoryAction icon={<Bot size={16} />} title="Agent build" detail={state.agentSessions[0]?.title ?? "Formula to verified implementation"} meta={state.agentRuntime.state} onClick={() => void runAgentWorkflow()} />
+      </div>
+    </section>
+  );
+}
+
+function RunWorkspace() {
+  const state = useAppState();
+  return (
+    <section className="view category-view">
+      <ViewHeader title="Run" detail="Project-scoped execution, experiments, benchmarks, cloud jobs, and logs." />
+      <div className="category-grid">
+        <CategoryAction icon={<Play size={16} />} title="Experiment" detail={state.experiments[0]?.name ?? "Run reproducible graph/simulation checks"} meta={state.experiments[0]?.state ?? "idle"} onClick={() => setView("experiment")} />
+        <CategoryAction icon={<Gauge size={16} />} title="Benchmark" detail={state.benchmarks[0]?.name ?? "Repeatable timing and artifact capture"} meta={state.benchmarks[0]?.state ?? "idle"} onClick={() => setView("benchmark")} />
+        <CategoryAction icon={<Cloud size={16} />} title="Cloud" detail={`${state.cloudJobs.length} jobs / ${state.cloudProviders.length} providers`} meta={state.cloudJobs[0]?.state ?? "idle"} onClick={() => setView("cloud")} />
+        <CategoryAction icon={<Terminal size={16} />} title="Logs" detail={state.logs[0]?.message ?? "Execution and server traces"} meta={`${state.logs.length} logs`} onClick={() => setView("logs")} />
+        <CategoryAction icon={<ShieldCheck size={16} />} title="Security" detail="Permissions and audit checks for project actions" meta={`${state.permissionChecks.length} checks`} onClick={() => setView("security")} />
+        <CategoryAction icon={<Zap size={16} />} title="Performance" detail="Shell, cache, memory, and offline status" meta={state.performanceStatus.serviceWorkerState} onClick={() => setView("performance")} />
+      </div>
+    </section>
+  );
+}
+
+function PublishWorkspace() {
+  const state = useAppState();
+  return (
+    <section className="view category-view">
+      <ViewHeader title="Publish" detail="Git state, papers, notebooks, artifacts, sync, and deployment plans." />
+      <div className="category-grid">
+        <CategoryAction icon={<GitBranch size={16} />} title="Git" detail="Branch, diff, commit, remote, push, and pull" meta={selectedProject(state).branch} onClick={() => setView("git")} />
+        <CategoryAction icon={<Globe2 size={16} />} title="Deploy" detail={state.deploymentPlans[0]?.name ?? "Docker/Caddy/DNS guarded deployment"} meta={state.deploymentPlans[0]?.state ?? "draft"} onClick={() => setView("deploy")} />
+        <CategoryAction icon={<FileText size={16} />} title="Paper" detail={state.documents.find((document) => document.kind === "latex")?.title ?? "LaTeX preview and export"} meta={`${state.documents.length} docs`} onClick={() => setView("latex")} />
+        <CategoryAction icon={<Download size={16} />} title="Artifacts" detail={`${state.artifacts.length} tracked outputs`} meta="local" onClick={() => setView("artifacts")} />
+        <CategoryAction icon={<Cloud size={16} />} title="Sync" detail={state.syncRuns[0]?.message ?? "Manifest-based workspace federation"} meta={state.syncRuns[0]?.state ?? "idle"} onClick={() => setView("sync")} />
+        <CategoryAction icon={<Database size={16} />} title="Database" detail={state.persistence.path} meta={`${state.persistence.entityCount} entities`} onClick={() => setView("database")} />
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric">
+      <small>{label}</small>
+      <span>{value}</span>
+    </div>
+  );
+}
+
+function CategoryCard({ icon, title, detail, onClick }: { icon: React.ReactNode; title: string; detail: string; onClick: () => void }) {
+  return (
+    <button className="category-card compact" onClick={onClick}>
+      {icon}
+      <span>{title}</span>
+      <small>{detail}</small>
+    </button>
+  );
+}
+
+function CategoryAction({ icon, title, detail, meta, onClick }: { icon: React.ReactNode; title: string; detail: string; meta: string; onClick: () => void }) {
+  return (
+    <button className="category-action" onClick={onClick}>
+      <span className="category-action-icon">{icon}</span>
+      <span className="category-action-main">
+        <strong>{title}</strong>
+        <small>{detail}</small>
+      </span>
+      <small data-status={meta}>{meta}</small>
+    </button>
   );
 }
 
@@ -1574,6 +1602,10 @@ function useKeyboard(commands: CommandItem[]) {
 
 function setView(activeView: ViewId) {
   updateState((draft) => ({ ...draft, activeView }));
+}
+
+function isViewIn(view: ViewId, views: ViewId[]) {
+  return views.includes(view);
 }
 
 function setTheme(theme: ThemeMode) {
