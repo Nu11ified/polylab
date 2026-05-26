@@ -1,6 +1,12 @@
 import { spawn } from "node:child_process";
 
-const vite = spawn("bun", ["x", "vite", "--host", "127.0.0.1"], { stdio: "inherit" });
+const electronBuild = spawn("bun", ["x", "tsc", "-p", "tsconfig.electron.json"], { stdio: "inherit" });
+const electronBuildCode = await new Promise<number | null>((resolve) => electronBuild.on("exit", resolve));
+if (electronBuildCode !== 0) {
+  process.exit(electronBuildCode ?? 1);
+}
+
+const vite = spawn("bun", ["x", "vite", "--host", "127.0.0.1", "--port", "5173", "--strictPort"], { stdio: "inherit" });
 
 const wait = async () => {
   for (let attempt = 0; attempt < 80; attempt++) {
