@@ -1,0 +1,34 @@
+{
+  "name": "polylab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PolyLab - verified AI-native research and experimentation workspace.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter @polylab/server dev & bun run --filter @polylab/desktop dev",
+    "dev:server": "bun run --filter @polylab/server dev",
+    "dev:desktop": "bun run --filter @polylab/desktop dev",
+    "build": "bun run --filter '*' build",
+    "build:desktop": "bun run --filter @polylab/desktop build",
+    "dist:mac": "bun run --filter @polylab/desktop dist:mac",
+    "dist:linux": "bun run --filter @polylab/desktop dist:linux",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun run --filter '*' test",
+    "verify": "bun run typecheck && bun run test && bun run build"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.2",
+    "@types/node": "^25.9.1",
+    "dmg-license": "^1.0.11",
+    "lightningcss": "^1.32.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "bun": ">=1.3.0",
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,18 @@
+%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
+4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
+5 0 obj << /Length 449 >> stream
+BT /F1 10 Tf 48 760 Td (Paper) Tj ET
+BT /F1 10 Tf 48 746 Td (LATEX / papers/paper.tex) Tj ET
+BT /F1 10 Tf 48 732 Td () Tj ET
+BT /F1 10 Tf 48 718 Td (equationeq:linear) Tj ET
+BT /F1 10 Tf 48 704 Td (y = x) Tj ET
+BT /F1 10 Tf 48 690 Td (equation) Tj ET
+BT /F1 10 Tf 48 676 Td (See eq:linear and smith2024.) Tj ET
+BT /F1 10 Tf 48 662 Td () Tj ET
+BT /F1 10 Tf 48 648 Td (Citations: smith2024) Tj ET
+BT /F1 10 Tf 48 634 Td (Bibliography: smith2024) Tj ET
+endstream endobj
+%%EOF

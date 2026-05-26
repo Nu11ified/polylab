@@ -1,0 +1,15 @@
+{
+  "id": "03bc99d6-a71e-413c-8e42-1093228a22f7",
+  "command": "echo softmax-jacobian",
+  "route": {
+    "target": "local",
+    "reason": "Small deterministic workload can run locally with low overhead."
+  },
+  "state": "succeeded",
+  "stdout": "softmax-jacobian\n",
+  "stderr": "",
+  "startedAt": "2026-05-25T23:49:00.231Z",
+  "sandbox": "none",
+  "exitCode": 0,
+  "finishedAt": "2026-05-25T23:49:00.232Z"
+}

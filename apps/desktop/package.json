@@ -1,0 +1,76 @@
+{
+  "name": "@polylab/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PolyLab desktop workspace.",
+  "homepage": "https://polylab.dev",
+  "author": {
+    "name": "PolyLab",
+    "email": "maintainers@polylab.dev"
+  },
+  "type": "module",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "tsc -p tsconfig.json --noEmit && vite build && tsc -p tsconfig.electron.json",
+    "build:server-bin": "bun scripts/build-server-bin.ts all",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "bun test src",
+    "dist:mac": "bun run build && bun scripts/build-server-bin.ts mac && electron-builder --mac zip --x64 --arm64",
+    "dist:linux": "bun run build && bun scripts/build-server-bin.ts linux && electron-builder --linux AppImage deb"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@polylab/types": "workspace:*",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.6",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "dmg-license": "^1.0.11",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
+    "lightningcss": "^1.32.0",
+    "lucide-react": "^0.554.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4"
+  },
+  "build": {
+    "appId": "dev.polylab.app",
+    "productName": "PolyLab",
+    "artifactName": "PolyLab-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "server-bin",
+        "to": "server-bin"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Development",
+      "executableName": "polylab",
+      "maintainer": "PolyLab <maintainers@polylab.dev>",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}

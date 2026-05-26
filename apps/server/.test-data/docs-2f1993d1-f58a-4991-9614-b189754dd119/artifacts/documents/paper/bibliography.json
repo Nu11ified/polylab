@@ -1,0 +1,16 @@
+{
+  "citations": [
+    "smith2024"
+  ],
+  "bibliography": [
+    {
+      "key": "smith2024",
+      "title": "Linear Systems",
+      "authors": [
+        "Jane Smith"
+      ],
+      "year": "2024",
+      "source": "PolyLab"
+    }
+  ]
+}

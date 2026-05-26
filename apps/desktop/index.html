@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PolyLab</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --shell-bg: #f5f5f2;
+        --panel-bg: #fbfbf9;
+        --panel-border: #d8d6cc;
+        --text: #20201d;
+      }
+
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background: var(--shell-bg);
+        color: var(--text);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      #boot-shell {
+        position: fixed;
+        inset: 10px;
+        display: grid;
+        grid-template-columns: 236px 1fr 320px;
+        border: 1px solid var(--panel-border);
+        background: var(--panel-bg);
+      }
+
+      #boot-shell::before,
+      #boot-shell::after {
+        content: "";
+        border-right: 1px solid var(--panel-border);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --shell-bg: #191a1d;
+          --panel-bg: #202125;
+          --panel-border: #34363b;
+          --text: #f3f0e8;
+        }
+      }
+    </style>
+    <script>
+      performance.mark("polylab:boot");
+      const cached = localStorage.getItem("polylab:shell");
+      if (cached) {
+        const shell = JSON.parse(cached);
+        if (shell.theme === "dark") document.documentElement.classList.add("dark");
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"><div id="boot-shell" aria-label="Loading PolyLab"></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

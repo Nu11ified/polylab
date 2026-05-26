@@ -1,0 +1,33 @@
+{
+  "job": {
+    "id": "90cb5e87-e3a5-4732-9419-04c9ba29558b",
+    "provider": "google-notebook",
+    "command": "python3 notebooks/lesson.py",
+    "state": "ready-for-dispatch",
+    "reason": "Notebook-native educational workloads are routed to a Google notebook runtime.",
+    "artifactPaths": [],
+    "costEstimate": "Notebook CPU session cost after dispatch",
+    "createdAt": "2026-05-25T23:19:34.982Z",
+    "updatedAt": "2026-05-25T23:19:34.982Z"
+  },
+  "request": {
+    "target": "auto",
+    "command": "python3 notebooks/lesson.py",
+    "notebook": true,
+    "estimatedSeconds": 600,
+    "memoryMb": 4096
+  },
+  "sync": {
+    "workspaceRoot": "/data/github/polylab/apps/server/.test-data/google-notebook-5b430eb4-06fc-4522-9948-01c65767f3fa",
+    "requiredBeforeDispatch": true
+  },
+  "dispatch": "Authenticate with Google notebook credentials, upload the generated .ipynb artifact, attach the workspace archive, then execute the command cell.",
+  "notebook": {
+    "runtime": "google-notebook",
+    "notebookArtifact": "artifacts/cloud/jobs/90cb5e87-e3a5-4732-9419-04c9ba29558b-google-notebook.ipynb",
+    "command": "python3 notebooks/lesson.py",
+    "accelerator": "none",
+    "memoryMb": 4096,
+    "estimatedSeconds": 600
+  }
+}

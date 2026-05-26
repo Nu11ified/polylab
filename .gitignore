@@ -1,0 +1,12 @@
+node_modules
+dist
+out
+release
+.DS_Store
+*.log
+*.tsbuildinfo
+apps/desktop/.vite
+apps/desktop/dist-electron
+apps/desktop/server-bin
+apps/server/.data
+.polylab

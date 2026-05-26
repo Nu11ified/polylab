@@ -1,0 +1,15 @@
+{
+  "id": "ae22f926-883c-435a-9d6b-48871bcda70d",
+  "command": "echo bench",
+  "route": {
+    "target": "local",
+    "reason": "Small deterministic workload can run locally with low overhead."
+  },
+  "state": "succeeded",
+  "stdout": "bench\n",
+  "stderr": "",
+  "startedAt": "2026-05-25T23:49:00.202Z",
+  "sandbox": "none",
+  "exitCode": 0,
+  "finishedAt": "2026-05-25T23:49:00.205Z"
+}

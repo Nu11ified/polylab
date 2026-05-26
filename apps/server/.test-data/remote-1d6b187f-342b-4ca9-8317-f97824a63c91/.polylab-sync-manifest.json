@@ -1,0 +1,13 @@
+{
+  "id": "eeb812d7-9604-4aed-918b-c436684de334",
+  "workspaceRoot": "/data/github/polylab/apps/server/.test-data/sync-a5b76018-f237-4583-873d-5b237d16b04c",
+  "files": [
+    {
+      "path": "notebooks/sync.md",
+      "size": 7,
+      "sha256": "088b43a907ac540dd98a3ac82f607accbb4e159dc298fa41c97224f07f856542",
+      "updatedAt": "2026-05-25T20:17:14.013Z"
+    }
+  ],
+  "createdAt": "2026-05-25T20:17:18.148Z"
+}
