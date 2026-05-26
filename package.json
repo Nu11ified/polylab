@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter @polylab/server dev & bun run --filter @polylab/desktop dev",
+    "dev": "bun dev.ts",
     "dev:server": "bun run --filter @polylab/server dev",
     "dev:desktop": "bun run --filter @polylab/desktop dev",
     "build": "bun run --filter '*' build",
