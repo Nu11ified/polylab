@@ -104,7 +104,7 @@ async function createWindow() {
 
   if (isDev) {
     await win.loadURL(process.env.POLYLAB_DESKTOP_URL ?? "http://127.0.0.1:5173");
-    win.webContents.openDevTools({ mode: "detach" });
+    if (process.env.POLYLAB_OPEN_DEVTOOLS === "1") win.webContents.openDevTools({ mode: "detach" });
   } else {
     await win.loadFile(path.resolve(__dirname, "../dist/index.html"));
   }

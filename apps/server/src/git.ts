@@ -74,7 +74,7 @@ export async function gitInit(cwd: string): Promise<GitStatus> {
 }
 
 export async function gitRemotes(cwd: string): Promise<GitRemote[]> {
-  await ensureGit(cwd);
+  if (!(await gitStatus(cwd)).initialized) return [];
   const result = await runGit(cwd, ["remote", "-v"]);
   if (!result.ok) throw new Error(result.stderr || "git remote failed");
   const byName = new Map<string, string>();
@@ -86,7 +86,7 @@ export async function gitRemotes(cwd: string): Promise<GitRemote[]> {
 }
 
 export async function gitBranches(cwd: string): Promise<string[]> {
-  await ensureGit(cwd);
+  if (!(await gitStatus(cwd)).initialized) return [];
   const result = await runGit(cwd, ["branch", "--format=%(refname:short)"]);
   if (!result.ok) throw new Error(result.stderr || "git branch failed");
   return result.stdout.trim().split("\n").map((branch) => branch.trim()).filter(Boolean);
